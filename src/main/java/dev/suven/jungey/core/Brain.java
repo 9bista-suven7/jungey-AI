@@ -53,13 +53,16 @@ public final class Brain {
         register(new NewsSkill());
 
         // Tier 3 - catch-all. Must sort last.
-        LlmSkill llm = new LlmSkill();
+        LlmSkill llm = new LlmSkill(viewport);
         register(new TranslateSkill(viewport, llm));
         register(new ClipboardSkill(viewport, llm));
         register(new VisionSkill(viewport));
         register(llm);
 
         skills.sort(Comparator.comparingInt(Skill::priority));
+
+        // Loading the model is the slowest thing Jungey ever waits for, so start it now.
+        pool.submit(llm::warmUp);
     }
 
     public void register(Skill skill) {

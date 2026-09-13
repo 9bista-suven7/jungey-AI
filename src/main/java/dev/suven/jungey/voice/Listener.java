@@ -161,6 +161,11 @@ public final class Listener {
             if (speaker.speaking()) {
                 recognizer.reset();
                 line.flush();
+                // A follow-up window counts from when the voice stops, not from when the text
+                // finished typing - otherwise a long spoken reply uses the whole window up.
+                if (state == State.LISTENING) {
+                    commandDeadline = System.currentTimeMillis() + COMMAND_WINDOW_MS;
+                }
                 continue;
             }
 
@@ -173,11 +178,20 @@ public final class Listener {
                 String text = textOf(recognizer.getResult(), "text");
                 if (text.isBlank()) continue;
 
+                // The wake word is never part of the command, whether it woke Jungey just now
+                // or was said again during a follow-up window.
+                String rest = afterWakeWord(text);
+
                 if (state == State.LISTENING) {
+                    String command = rest == null ? text : rest;
+                    if (command.isBlank()) {
+                        // Only the wake word again - keep waiting for the command itself.
+                        commandDeadline = System.currentTimeMillis() + COMMAND_WINDOW_MS;
+                        continue;
+                    }
                     setState(State.WAITING);
-                    onCommand.accept(text);
+                    onCommand.accept(command);
                 } else {
-                    String rest = afterWakeWord(text);
                     if (rest == null) continue;
 
                     if (rest.isBlank()) {
@@ -190,10 +204,11 @@ public final class Listener {
                     }
                 }
             } else if (state == State.WAITING) {
-                // Partial results let the wake word register before the speaker pauses.
+                // Partial results let the wake word register before the speaker pauses. The
+                // recogniser is deliberately not reset: in "purple what time is it" the command
+                // is already being decoded, and resetting here would drop its first words.
                 String partial = textOf(recognizer.getPartialResult(), "partial");
                 if (afterWakeWord(partial) != null && partial.split("\\s+").length <= wakeLength() + 1) {
-                    recognizer.reset();
                     setState(State.LISTENING);
                     commandDeadline = System.currentTimeMillis() + COMMAND_WINDOW_MS;
                 }

@@ -159,7 +159,9 @@ unzip vosk-model-en-us-0.22.zip -d ~/.local/share/vosk
 mv ~/.local/share/vosk/vosk-model-en-us-0.22 ~/.local/share/vosk/model
 ```
 
-That one is 1.8 GB and wants a few GB of RAM. `vosk-model-small-en-us-0.15` is 40 MB and
+That one is 1.8 GB and wants a few GB of RAM. On a laptop CPU, move its `rescore` and `rnnlm`
+folders out of the model directory: they are optional rescoring passes that keep a whole core
+busy, fall behind live speech and drop audio - which is exactly when a wake word goes unheard. `vosk-model-small-en-us-0.15` is 40 MB and
 plenty for commands if you would rather not spend the disk. The status bar shows `MIC WAKE`
 while waiting for the wake word and `MIC LIVE` while a command is being taken. With no
 model installed Jungey says so once at boot and stays keyboard-only.
@@ -242,6 +244,7 @@ outlives the window.
 | `llm.model` | `llama3.2:3b` | any model you've pulled |
 | `llm.visionModel` | `moondream` | used for screen and camera questions |
 | `llm.url` | `http://localhost:11434` | Ollama endpoint |
+| `llm.keepAlive` | `60m` | how long Ollama keeps a model loaded; reloading from disk is the slow part |
 | `ui.alwaysOnTop` | `false` | pin above other windows |
 
 ## Roadmap

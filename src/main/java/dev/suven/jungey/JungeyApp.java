@@ -92,6 +92,11 @@ public class JungeyApp extends Application implements dev.suven.jungey.core.View
         stage.setMinHeight(420);
         stage.setAlwaysOnTop(cfg.bool("ui.alwaysOnTop"));
         stage.setOnCloseRequest(e -> shutdown());
+        // Nobody watches a minimised reactor spin; stop drawing it until the window is back.
+        stage.iconifiedProperty().addListener((obs, was, minimised) -> {
+            if (minimised) reactor.stop();
+            else reactor.start();
+        });
         stage.show();
 
         reactor.start();
@@ -294,6 +299,13 @@ public class JungeyApp extends Application implements dev.suven.jungey.core.View
     private void render(SkillResult result) {
         transcribe("jungey", result.speech());
 
+        // Already shown and spoken while it arrived - nothing left but to settle.
+        if (result.streamed()) {
+            reactor.setState(ReactorView.State.IDLE);
+            if (spokenTo) listener.followUp();
+            return;
+        }
+
         if (!result.ok()) {
             reactor.setState(ReactorView.State.ERROR);
             console.addError(result.speech());
@@ -401,6 +413,24 @@ public class JungeyApp extends Application implements dev.suven.jungey.core.View
             speaker.say(text);
             notifyDesktop(text);
         });
+    }
+
+    @Override
+    public ReplyStream beginReply() {
+        java.util.function.Consumer<String> line = console.addJungeyLive();
+        Platform.runLater(() -> reactor.setState(ReactorView.State.SPEAKING));
+
+        return new ReplyStream() {
+            @Override
+            public void text(String chunk) {
+                line.accept(chunk);
+            }
+
+            @Override
+            public void sentence(String sentence) {
+                speaker.say(sentence);
+            }
+        };
     }
 
     /** The window is often not what is being looked at, so it goes to the desktop too. */

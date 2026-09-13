@@ -35,4 +35,18 @@ public interface Viewport {
      * since the window may well not be the thing being looked at.
      */
     void announce(String text);
+
+    /**
+     * Begin a reply that arrives a piece at a time, so a slow model's first words are shown
+     * and spoken while the rest is still being generated. Callable from any thread.
+     */
+    ReplyStream beginReply();
+
+    interface ReplyStream {
+        /** Text as it arrives, appended to the line on screen. */
+        void text(String chunk);
+
+        /** A complete sentence, queued to be spoken. */
+        void sentence(String sentence);
+    }
 }

@@ -170,6 +170,7 @@ public class VisionSkill implements Skill {
         ObjectNode body = MAPPER.createObjectNode();
         body.put("model", model);
         body.put("stream", false);
+        body.put("keep_alive", LlmSkill.keepAlive());
 
         ObjectNode message = body.putArray("messages").addObject();
         message.put("role", "user");
