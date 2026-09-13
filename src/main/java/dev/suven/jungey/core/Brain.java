@@ -30,12 +30,15 @@ public final class Brain {
     public Brain(Speaker speaker, Viewport viewport) {
         // Tier 1 - local, instant.
         register(new TimeSkill());
+        register(new MathSkill());
         register(new VoiceSkill(speaker));
         register(new TimerSkill(viewport));
         register(new NoteSkill());
+        register(new DiagnosticsSkill());
         register(new SystemSkill());
         register(new NetworkSkill());
         register(new SystemControlSkill());
+        register(new UpdateSkill());
         register(new OcrSkill());
         register(new CameraSkill(viewport));
         register(new ScreenshotSkill(viewport));
@@ -51,6 +54,7 @@ public final class Brain {
 
         // Tier 3 - catch-all. Must sort last.
         LlmSkill llm = new LlmSkill();
+        register(new TranslateSkill(viewport, llm));
         register(new ClipboardSkill(viewport, llm));
         register(new VisionSkill(viewport));
         register(llm);

@@ -74,9 +74,23 @@ public class ScreenshotSkill implements Skill {
      * @throws IllegalStateException if nothing on this machine can take a screenshot
      */
     static void captureScreen(Path out) throws IOException, InterruptedException {
+        capture(out, false);
+    }
+
+    /**
+     * Let the user drag a box, and capture only that. Blocks until they have chosen, so
+     * the timeout is generous - a person picking a region is slower than a screen grab.
+     */
+    static void captureRegion(Path out) throws IOException, InterruptedException {
+        capture(out, true);
+    }
+
+    private static void capture(Path out, boolean region) throws IOException, InterruptedException {
         List<String> cmd;
         if (CameraSkill.onPath("xfce4-screenshooter")) {
-            cmd = List.of("xfce4-screenshooter", "-f", "-s", out.toString());
+            cmd = List.of("xfce4-screenshooter", region ? "-r" : "-f", "-s", out.toString());
+        } else if (region && CameraSkill.onPath("gnome-screenshot")) {
+            cmd = List.of("gnome-screenshot", "-a", "-f", out.toString());
         } else if (CameraSkill.onPath("gnome-screenshot")) {
             cmd = List.of("gnome-screenshot", "-f", out.toString());
         } else if (CameraSkill.onPath("ffmpeg")) {
@@ -96,12 +110,14 @@ public class ScreenshotSkill implements Skill {
                 .redirectOutput(ProcessBuilder.Redirect.DISCARD)
                 .start();
 
-        if (!p.waitFor(20, TimeUnit.SECONDS)) {
+        // Picking a region is a human action, so it gets far longer than a plain grab.
+        if (!p.waitFor(region ? 120 : 20, TimeUnit.SECONDS)) {
             p.destroyForcibly();
             throw new IllegalStateException("The screenshot timed out.");
         }
-        if (!Files.exists(out)) {
-            throw new IllegalStateException("The screenshot failed.");
+        if (!Files.exists(out) || Files.size(out) == 0) {
+            throw new IllegalStateException(region
+                    ? "No region was selected." : "The screenshot failed.");
         }
     }
 }

@@ -39,8 +39,14 @@ open camera
 take a photo
 record video
 screenshot
+what is 15% of 240
 what is on my screen
 read my screen
+read that
+what is this
+why is my laptop slow
+any updates
+translate this to Nepali
 what does this error mean
 explain this
 note: pick up the dry cleaning
@@ -64,7 +70,7 @@ wants the utterance. First one to claim it wins.
 
 | Tier | Priority | Skills | Cost |
 |---|---|---|---|
-| Local | 5–99 | help, time, voice, timers, notes, system, network, controls, ocr, camera, screenshot, windows, launcher, find, clipboard | instant, offline |
+| Local | 5–99 | help, time, maths, voice, timers, notes, diagnostics, system, network, controls, updates, ocr, camera, screenshot, windows, launcher, find, translate, clipboard | instant, offline |
 | Online | 200–999 | weather, vision, lookup, news | one HTTP call, or a local vision model |
 | Model | 9000 | converse | local LLM, catch-all |
 
@@ -162,6 +168,10 @@ their exposure. Recording stops itself after five minutes if nobody says "stop r
 Timers live in memory and speak up when they are due, through the transcript, the voice
 and the desktop's notifications — the window is usually not what you are looking at.
 
+**Pointing at things** — "read that" and "what is this" let you drag a box around part of
+the screen, then run OCR or the vision model on just that. Faster than the whole screen,
+and far more precise.
+
 **Reading text** — "read my screen" runs OCR through tesseract and returns the characters
 that are actually there. Prefer it over the vision model for anything exact: a version
 number, a stack trace, an error code.
@@ -191,6 +201,13 @@ ollama pull llama3.2:3b
 `llama3.2:3b` is about 2 GB and runs on modest hardware. If it feels slow, drop to
 `llama3.2:1b` in the config. Without Ollama everything else still works — unmatched
 input just says the reasoning core is offline.
+
+## Odds and ends
+
+Up and down at the prompt walk back through what you have typed. "Stop" cuts off a
+sentence being spoken without turning speech off — that is what "voice off" is for. Every
+exchange is appended to `~/.local/share/jungey/transcript.log`, so the conversation
+outlives the window.
 
 ## Settings
 

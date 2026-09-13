@@ -80,6 +80,11 @@ public class VisionSkill implements Skill {
         if (!s.matches(".*\\b(look|see|seeing|read|describe|explain|what|what's)\\b.*")) return null;
 
         // "my screen" and "the screen" are requests; "a screen door" is not.
+        // "What's this" points at something; the user draws a box around it.
+        if (s.equals("what is this") || s.equals("what's this")
+                || s.equals("what is that") || s.equals("what's that")
+                || s.matches("^(look at|explain) (this|that)$")) return "region";
+
         if (s.matches(".*\\b(my|the)\\s+(screen|display|monitor)\\b.*")
                 || s.matches(".*\\bthis error\\b.*")) return "screen";
 
@@ -96,7 +101,7 @@ public class VisionSkill implements Skill {
         String what = target(input.trim().toLowerCase());
         if (what == null) return SkillResult.error("I am not sure what to look at.");
 
-        Path shot = Files.createTempFile("jungey-vision-", what.equals("screen") ? ".png" : ".jpg");
+        Path shot = Files.createTempFile("jungey-vision-", what.equals("camera") ? ".jpg" : ".png");
         try {
             if (!grab(what, shot)) {
                 return SkillResult.error("I could not get a picture to look at.");
@@ -106,7 +111,7 @@ public class VisionSkill implements Skill {
             String answer = ask(input.trim(), Files.readAllBytes(small));
             if (!small.equals(shot)) Files.deleteIfExists(small);
 
-            viewport.showImage(shot, what.equals("screen") ? "screen" : "camera");
+            viewport.showImage(shot, what);
             return answer.length() > 260
                     ? SkillResult.of(answer.substring(0, 240), WikipediaSkill.wrap(answer, 78))
                     : SkillResult.of(answer);
@@ -117,9 +122,13 @@ public class VisionSkill implements Skill {
     }
 
     private boolean grab(String what, Path out) throws IOException, InterruptedException {
-        if (what.equals("screen")) {
+        if (what.equals("screen") || what.equals("region")) {
             try {
-                ScreenshotSkill.captureScreen(out);
+                if (what.equals("region")) {
+                    ScreenshotSkill.captureRegion(out);
+                } else {
+                    ScreenshotSkill.captureScreen(out);
+                }
                 return true;
             } catch (IllegalStateException e) {
                 return false;

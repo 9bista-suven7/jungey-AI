@@ -52,6 +52,9 @@ public class JungeyApp extends Application implements dev.suven.jungey.core.View
     private boolean earsAnnounced;
     private boolean spokenTo;
 
+    private final java.util.List<String> history = new java.util.ArrayList<>();
+    private int historyIndex;
+
     @Override
     public void start(Stage stage) {
         Config cfg = Config.get();
@@ -199,6 +202,17 @@ public class JungeyApp extends Application implements dev.suven.jungey.core.View
             submit(input.getText());
         });
 
+        // Up and down walk back through what you have typed, as a shell would.
+        input.setOnKeyPressed(e -> {
+            if (e.getCode() == KeyCode.UP) {
+                recall(-1);
+                e.consume();
+            } else if (e.getCode() == KeyCode.DOWN) {
+                recall(1);
+                e.consume();
+            }
+        });
+
         HBox box = new HBox(10, prompt, input);
         box.setAlignment(Pos.CENTER_LEFT);
         box.setPadding(new Insets(10, 18, 10, 20));
@@ -229,11 +243,26 @@ public class JungeyApp extends Application implements dev.suven.jungey.core.View
         timeline.play();
     }
 
+    /** Step through past commands. index == history.size() is the empty prompt. */
+    private void recall(int direction) {
+        if (history.isEmpty()) return;
+
+        historyIndex = Math.max(0, Math.min(history.size(), historyIndex + direction));
+        input.setText(historyIndex == history.size() ? "" : history.get(historyIndex));
+        input.positionCaret(input.getText().length());
+    }
+
     private void submit(String text) {
         if (text == null || text.isBlank()) return;
 
+        if (history.isEmpty() || !history.get(history.size() - 1).equals(text)) {
+            history.add(text);
+        }
+        historyIndex = history.size();
+
         input.clear();
         console.addUser(text);
+        transcribe("you", text);
         speaker.stop();   // cut off whatever is being said - a new command takes priority
 
         if (text.trim().equalsIgnoreCase("exit") || text.trim().equalsIgnoreCase("quit")) {
@@ -263,6 +292,8 @@ public class JungeyApp extends Application implements dev.suven.jungey.core.View
     }
 
     private void render(SkillResult result) {
+        transcribe("jungey", result.speech());
+
         if (!result.ok()) {
             reactor.setState(ReactorView.State.ERROR);
             console.addError(result.speech());
@@ -270,6 +301,13 @@ public class JungeyApp extends Application implements dev.suven.jungey.core.View
             Timeline back = new Timeline(new KeyFrame(Duration.seconds(1.6),
                     e -> reactor.setState(ReactorView.State.IDLE)));
             back.play();
+            return;
+        }
+
+        // A blank reply means the skill has already done the talking - or been told not to.
+        if (result.speech().isBlank()) {
+            reactor.setState(ReactorView.State.IDLE);
+            if (spokenTo) listener.followUp();
             return;
         }
 
@@ -333,6 +371,26 @@ public class JungeyApp extends Application implements dev.suven.jungey.core.View
             return answer.get(2, java.util.concurrent.TimeUnit.SECONDS);
         } catch (Exception e) {
             return "";
+        }
+    }
+
+    /**
+     * Append one line of the conversation to disk, so it outlives the window. Failure is
+     * silent on purpose - losing a log line must never interrupt the exchange itself.
+     */
+    private static void transcribe(String who, String text) {
+        try {
+            java.nio.file.Path dir = java.nio.file.Path.of(
+                    System.getProperty("user.home"), ".local", "share", "jungey");
+            java.nio.file.Files.createDirectories(dir);
+            java.nio.file.Files.writeString(dir.resolve("transcript.log"),
+                    java.time.LocalDateTime.now().withNano(0) + "  " + who + ": "
+                            + text.replace("\n", " ") + "\n",
+                    java.nio.charset.StandardCharsets.UTF_8,
+                    java.nio.file.StandardOpenOption.CREATE,
+                    java.nio.file.StandardOpenOption.APPEND);
+        } catch (java.io.IOException ignored) {
+            // Not worth telling anyone about.
         }
     }
 

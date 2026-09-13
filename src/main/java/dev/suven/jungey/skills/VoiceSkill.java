@@ -18,6 +18,9 @@ public class VoiceSkill implements Skill {
     private static final Set<String> ON = Set.of("voice on", "unmute", "speak up", "sound on");
     private static final Set<String> OFF = Set.of("voice off", "mute", "be quiet", "silence", "sound off");
 
+    /** Cuts off the sentence being spoken without turning speech off for good. */
+    private static final Set<String> HUSH = Set.of("stop", "stop talking", "shush", "enough", "quiet");
+
     private final Speaker speaker;
 
     public VoiceSkill(Speaker speaker) {
@@ -47,12 +50,18 @@ public class VoiceSkill implements Skill {
     @Override
     public boolean matches(String input) {
         String s = input.trim();
-        return s.equals("voice") || ON.contains(s) || OFF.contains(s);
+        return s.equals("voice") || ON.contains(s) || OFF.contains(s) || HUSH.contains(s);
     }
 
     @Override
     public SkillResult run(String input) {
         String s = input.trim().toLowerCase();
+
+        // Interrupting is not the same as muting - it stays on for the next answer.
+        if (HUSH.contains(s)) {
+            speaker.stop();
+            return SkillResult.of("");
+        }
 
         if (!speaker.available()) {
             return SkillResult.error(

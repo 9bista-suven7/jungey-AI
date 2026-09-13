@@ -40,8 +40,13 @@ public class OcrSkill implements Skill {
     public boolean matches(String input) {
         String s = input.trim();
         return s.matches(".*\\bread\\b.*\\b(my|the)\\s+screen\\b.*")
-                || s.equals("ocr")
+                || s.equals("ocr") || s.equals("read that") || s.equals("read this")
                 || s.matches(".*\\b(extract|copy|grab)\\b.*\\btext\\b.*");
+    }
+
+    /** "Read that" means a region the user picks; "read my screen" means all of it. */
+    private static boolean wantsRegion(String s) {
+        return s.equals("read that") || s.equals("read this");
     }
 
     @Override
@@ -50,10 +55,15 @@ public class OcrSkill implements Skill {
             return SkillResult.error("Reading text needs tesseract. Try: sudo apt install tesseract-ocr");
         }
 
+        boolean region = wantsRegion(input.trim().toLowerCase());
         Path shot = Files.createTempFile("jungey-ocr-", ".png");
         try {
             try {
-                ScreenshotSkill.captureScreen(shot);
+                if (region) {
+                    ScreenshotSkill.captureRegion(shot);
+                } else {
+                    ScreenshotSkill.captureScreen(shot);
+                }
             } catch (IllegalStateException e) {
                 return SkillResult.error(e.getMessage());
             }
