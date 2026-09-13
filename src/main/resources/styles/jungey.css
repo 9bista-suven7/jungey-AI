@@ -1,0 +1,185 @@
+/* Jungey HUD — cyan on near-black, thin rules, monospace throughout. */
+
+.root-pane {
+    -fx-background-color: linear-gradient(to bottom right, #05080e 0%, #080d17 55%, #050a12 100%);
+    -fx-background-radius: 14;
+    -fx-border-radius: 14;
+    -fx-border-width: 1;
+    -fx-border-color: rgba(56, 232, 255, 0.28);
+}
+
+/* ---------- header ---------- */
+
+.header {
+    -fx-background-color: rgba(56, 232, 255, 0.04);
+    -fx-background-radius: 14 14 0 0;
+    -fx-border-color: transparent transparent rgba(56, 232, 255, 0.16) transparent;
+    -fx-border-width: 0 0 1 0;
+    -fx-cursor: move;
+}
+
+.title {
+    -fx-font-family: "JetBrains Mono", "Fira Code", "DejaVu Sans Mono", monospace;
+    -fx-font-size: 17px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #38e8ff;
+    -fx-effect: dropshadow(gaussian, rgba(56, 232, 255, 0.75), 12, 0.2, 0, 0);
+}
+
+.subtitle {
+    -fx-font-family: "DejaVu Sans Mono", monospace;
+    -fx-font-size: 11px;
+    -fx-text-fill: rgba(150, 200, 220, 0.55);
+    -fx-padding: 3 0 0 0;
+}
+
+.close-button {
+    -fx-font-size: 14px;
+    -fx-text-fill: rgba(150, 200, 220, 0.5);
+    -fx-cursor: hand;
+    -fx-padding: 2 6 2 6;
+}
+
+.close-button:hover {
+    -fx-text-fill: #ff4d5e;
+}
+
+/* ---------- transcript ---------- */
+
+.console {
+    -fx-background-color: transparent;
+    -fx-background: transparent;
+    -fx-padding: 0;
+}
+
+.console > .viewport {
+    -fx-background-color: transparent;
+}
+
+.console .scroll-bar:vertical {
+    -fx-background-color: transparent;
+    -fx-pref-width: 8;
+}
+
+.console .scroll-bar:vertical .thumb {
+    -fx-background-color: rgba(56, 232, 255, 0.25);
+    -fx-background-radius: 4;
+}
+
+.console .scroll-bar .increment-button,
+.console .scroll-bar .decrement-button,
+.console .scroll-bar .increment-arrow,
+.console .scroll-bar .decrement-arrow {
+    -fx-background-color: transparent;
+    -fx-padding: 0;
+    -fx-shape: null;
+}
+
+.line-user {
+    -fx-font-family: "DejaVu Sans Mono", monospace;
+    -fx-font-size: 13px;
+    -fx-text-fill: #cfe9f2;
+}
+
+.caret-user {
+    -fx-font-family: "DejaVu Sans Mono", monospace;
+    -fx-font-size: 13px;
+    -fx-text-fill: rgba(150, 200, 220, 0.5);
+}
+
+.line-jungey {
+    -fx-font-family: "DejaVu Sans Mono", monospace;
+    -fx-font-size: 13.5px;
+    -fx-text-fill: #38e8ff;
+    -fx-effect: dropshadow(gaussian, rgba(56, 232, 255, 0.35), 8, 0, 0, 0);
+}
+
+.caret-jungey {
+    -fx-font-size: 11px;
+    -fx-text-fill: #38e8ff;
+    -fx-padding: 2 0 0 0;
+}
+
+.line-error {
+    -fx-font-family: "DejaVu Sans Mono", monospace;
+    -fx-font-size: 13px;
+    -fx-text-fill: #ff8b96;
+}
+
+.caret-error {
+    -fx-font-size: 12px;
+    -fx-text-fill: #ff4d5e;
+}
+
+.line-system {
+    -fx-font-family: "DejaVu Sans Mono", monospace;
+    -fx-font-size: 11.5px;
+    -fx-text-fill: rgba(120, 175, 200, 0.55);
+}
+
+.detail-box {
+    -fx-background-color: rgba(56, 232, 255, 0.05);
+    -fx-background-radius: 7;
+    -fx-border-color: rgba(56, 232, 255, 0.16);
+    -fx-border-radius: 7;
+    -fx-border-width: 1;
+    -fx-padding: 11 15 11 15;
+}
+
+.detail {
+    -fx-font-family: "DejaVu Sans Mono", "Liberation Mono", monospace;
+    -fx-font-size: 11.5px;
+    -fx-text-fill: #9fd8e8;
+}
+
+/* ---------- prompt ---------- */
+
+.prompt-bar {
+    -fx-background-color: rgba(56, 232, 255, 0.035);
+    -fx-border-color: rgba(56, 232, 255, 0.16) transparent rgba(56, 232, 255, 0.1) transparent;
+    -fx-border-width: 1 0 1 0;
+}
+
+.prompt-caret {
+    -fx-font-family: "DejaVu Sans Mono", monospace;
+    -fx-font-size: 16px;
+    -fx-text-fill: #38e8ff;
+    -fx-effect: dropshadow(gaussian, rgba(56, 232, 255, 0.8), 10, 0.3, 0, 0);
+}
+
+.prompt-field {
+    -fx-background-color: transparent;
+    -fx-font-family: "DejaVu Sans Mono", monospace;
+    -fx-font-size: 14px;
+    -fx-text-fill: #e6f7fc;
+    -fx-prompt-text-fill: rgba(140, 190, 210, 0.38);
+    -fx-highlight-fill: rgba(56, 232, 255, 0.3);
+    -fx-padding: 4 0 4 0;
+}
+
+.prompt-field:focused {
+    -fx-background-color: transparent;
+}
+
+/* ---------- status bar ---------- */
+
+.status-bar {
+    -fx-background-color: rgba(3, 6, 11, 0.85);
+    -fx-background-radius: 0 0 14 14;
+}
+
+.status-cell {
+    -fx-font-family: "DejaVu Sans Mono", monospace;
+    -fx-font-size: 10.5px;
+    -fx-text-fill: rgba(130, 185, 210, 0.72);
+    -fx-padding: 0 11 0 11;
+}
+
+.status-sep {
+    -fx-font-size: 10.5px;
+    -fx-text-fill: rgba(56, 232, 255, 0.2);
+}
+
+.status-warn {
+    -fx-text-fill: #ff8b96;
+}
