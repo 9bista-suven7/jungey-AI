@@ -60,6 +60,10 @@ volume up
 lock the screen
 purple, what time is it
 voice off
+good answer
+the correct answer is Kathmandu
+training stats
+export training data
 clear
 exit
 ```
@@ -71,7 +75,7 @@ wants the utterance. First one to claim it wins.
 
 | Tier | Priority | Skills | Cost |
 |---|---|---|---|
-| Local | 5–99 | help, time, maths, voice, timers, notes, diagnostics, system, network, controls, updates, ocr, camera, screenshot, windows, launcher, find, translate, clipboard | instant, offline |
+| Local | 5–99 | help, time, maths, voice, timers, notes, diagnostics, system, network, controls, updates, ocr, camera, screenshot, windows, launcher, find, translate, clipboard, training | instant, offline |
 | Online | 200–999 | weather, vision, lookup, news | one HTTP call, or a local vision model |
 | Model | 9000 | converse | local LLM, catch-all |
 
@@ -223,6 +227,14 @@ Up and down at the prompt walk back through what you have typed. "Stop" cuts off
 sentence being spoken without turning speech off — that is what "voice off" is for. Every
 exchange is appended to `~/.local/share/jungey/transcript.log`, so the conversation
 outlives the window.
+
+## Training data
+
+Every exchange is saved to a local SQLite database at `~/.local/share/jungey/jungey.db`.
+Say `good answer`, `bad answer` or `the correct answer is …` straight after a reply to rate
+or correct it, and `export training data` to write the conversations out as chat-format
+JSONL for fine-tuning. [docs/TRAINING.md](docs/TRAINING.md) covers the rest - Ollama runs
+models but does not train them.
 
 ## Settings
 

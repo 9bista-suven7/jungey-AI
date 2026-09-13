@@ -21,6 +21,7 @@ import java.util.concurrent.Executors;
 public final class Brain {
 
     private final List<Skill> skills = new ArrayList<>();
+    private final Journal journal = new Journal();
     private final ExecutorService pool = Executors.newFixedThreadPool(3, r -> {
         Thread t = new Thread(r, "jungey-worker");
         t.setDaemon(true);
@@ -46,6 +47,7 @@ public final class Brain {
         register(new AppLauncherSkill());
         register(new FileSearchSkill());
         register(new HelpSkill(this));
+        register(new TrainingSkill(journal));
 
         // Tier 2 - online.
         register(new WeatherSkill());
@@ -105,13 +107,32 @@ public final class Brain {
 
         final Skill skill = chosen;
         return CompletableFuture.supplyAsync(() -> {
+            long started = System.nanoTime();
+            SkillResult result;
             try {
-                return skill.run(input.trim());
+                result = skill.run(input.trim());
             } catch (Exception e) {
                 String msg = e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage();
-                return SkillResult.error(skill.name() + " failed: " + msg);
+                result = SkillResult.error(skill.name() + " failed: " + msg);
             }
+
+            // Feedback about an exchange is not itself an exchange worth learning from.
+            if (!(skill instanceof TrainingSkill)) {
+                journal.record(input.trim(), skill.name(), result, modelFor(skill),
+                        (System.nanoTime() - started) / 1_000_000);
+            }
+            return result;
         }, pool);
+    }
+
+    /** Which model wrote a reply, so data from before and after a model change can be told apart. */
+    private static String modelFor(Skill skill) {
+        Config cfg = Config.get();
+        return switch (skill.name()) {
+            case "converse", "translate", "clipboard" -> cfg.str("llm.model", "llama3.2:3b");
+            case "vision" -> cfg.str("llm.visionModel", "moondream");
+            default -> null;
+        };
     }
 
     /** True if this utterance will need the network or a model, so the HUD can show "thinking". */
@@ -127,5 +148,6 @@ public final class Brain {
 
     public void shutdown() {
         pool.shutdownNow();
+        journal.close();
     }
 }

@@ -254,7 +254,8 @@ public class LlmSkill implements Skill {
         }
     }
 
-    private static String systemPrompt() {
+    /** Also written into exported training data, so a fine-tuned model learns under the same instructions. */
+    public static String systemPrompt() {
         Config cfg = Config.get();
         return """
                 You are Jungey, a personal assistant running locally on %s's Linux machine.
