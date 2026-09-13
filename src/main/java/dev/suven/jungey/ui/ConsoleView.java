@@ -13,6 +13,8 @@ import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 import javafx.util.Duration;
 
+import java.util.function.Consumer;
+
 /** The scrolling transcript. Jungey's lines type themselves in; yours appear at once. */
 public class ConsoleView extends ScrollPane {
 
@@ -67,6 +69,26 @@ public class ConsoleView extends ScrollPane {
 
     public void addJungey(String text) {
         addJungey(text, null);
+    }
+
+    /**
+     * A line from Jungey that fills in as it is generated - the arriving text is its own
+     * typewriter. Returns the appender; safe to call from any thread.
+     */
+    public Consumer<String> addJungeyLive() {
+        Label label = new Label();
+        label.getStyleClass().add("line-jungey");
+        label.setWrapText(true);
+
+        Label caret = new Label("◆ ");
+        caret.getStyleClass().add("caret-jungey");
+
+        HBox row = new HBox(caret, label);
+        row.setAlignment(Pos.TOP_LEFT);
+        HBox.setHgrow(label, Priority.ALWAYS);
+        add(row);
+
+        return chunk -> Platform.runLater(() -> label.setText(label.getText() + chunk));
     }
 
     /** A failure, shown in red without the typing flourish. */

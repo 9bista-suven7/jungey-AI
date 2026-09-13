@@ -45,6 +45,7 @@ public final class Config {
         props.setProperty("llm.model", "llama3.2:3b");
         props.setProperty("llm.visionModel", "moondream");
         props.setProperty("llm.url", "http://localhost:11434");
+        props.setProperty("llm.keepAlive", "60m");   // how long Ollama holds a model in memory
         props.setProperty("ui.alwaysOnTop", "false");
 
         if (Files.exists(FILE)) {

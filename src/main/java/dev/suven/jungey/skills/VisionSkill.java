@@ -7,6 +7,7 @@ import dev.suven.jungey.core.Config;
 import dev.suven.jungey.core.Skill;
 import dev.suven.jungey.core.SkillResult;
 import dev.suven.jungey.core.Viewport;
+import dev.suven.jungey.watch.SceneWatcher;
 
 import java.io.IOException;
 import java.net.URI;
@@ -40,9 +41,11 @@ public class VisionSkill implements Skill {
     private static final int MAX_WIDTH = 1024;
 
     private final Viewport viewport;
+    private final SceneWatcher watcher;
 
-    public VisionSkill(Viewport viewport) {
+    public VisionSkill(Viewport viewport, SceneWatcher watcher) {
         this.viewport = viewport;
+        this.watcher = watcher;
     }
 
     @Override
@@ -135,7 +138,8 @@ public class VisionSkill implements Skill {
             }
         }
 
-        byte[] live = viewport.currentFrame();
+        // While watching, the watcher holds the camera; its newest frame is as good as a fresh one.
+        byte[] live = watcher.running() ? watcher.latestJpeg() : viewport.currentFrame();
         if (live != null) {
             Files.write(out, live);
             return true;
@@ -162,7 +166,8 @@ public class VisionSkill implements Skill {
         return out;
     }
 
-    private static String ask(String question, byte[] image) throws IOException, InterruptedException {
+    /** One question about one image, answered by the local vision model. Also used to name what the watcher saw. */
+    public static String ask(String question, byte[] image) throws IOException, InterruptedException {
         Config cfg = Config.get();
         String base = cfg.str("llm.url", "http://localhost:11434");
         String model = cfg.str("llm.visionModel", "moondream");
@@ -170,6 +175,7 @@ public class VisionSkill implements Skill {
         ObjectNode body = MAPPER.createObjectNode();
         body.put("model", model);
         body.put("stream", false);
+        body.put("keep_alive", LlmSkill.keepAlive());
 
         ObjectNode message = body.putArray("messages").addObject();
         message.put("role", "user");

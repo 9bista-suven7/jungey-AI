@@ -6,6 +6,7 @@ import java.io.IOException;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Text to speech, delegated to whatever is installed on the machine.
@@ -28,6 +29,9 @@ public final class Speaker {
     private volatile boolean muted;
     private volatile boolean speaking;
     private Process current;
+
+    /** Bumped by stop(), so lines queued before it are dropped rather than spoken late. */
+    private final AtomicInteger generation = new AtomicInteger();
 
     public Speaker() {
         this.engine = detect();
@@ -103,7 +107,9 @@ public final class Speaker {
                 .trim();
         if (clean.isEmpty()) return;
 
+        int queuedIn = generation.get();
         voice.submit(() -> {
+            if (queuedIn != generation.get()) return;
             speaking = true;
             try {
                 speakNow(clean);
@@ -138,6 +144,7 @@ public final class Speaker {
 
     /** Interrupt whatever is being said - used when a new command arrives mid-sentence. */
     public void stop() {
+        generation.incrementAndGet();
         Process p = current;
         if (p != null && p.isAlive()) {
             p.destroy();

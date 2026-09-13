@@ -2,6 +2,7 @@ package dev.suven.jungey.core;
 
 import dev.suven.jungey.skills.*;
 import dev.suven.jungey.voice.Speaker;
+import dev.suven.jungey.watch.SceneWatcher;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -21,6 +22,8 @@ import java.util.concurrent.Executors;
 public final class Brain {
 
     private final List<Skill> skills = new ArrayList<>();
+    private final Journal journal = new Journal();
+    private final SceneWatcher watcher = new SceneWatcher();
     private final ExecutorService pool = Executors.newFixedThreadPool(3, r -> {
         Thread t = new Thread(r, "jungey-worker");
         t.setDaemon(true);
@@ -40,12 +43,14 @@ public final class Brain {
         register(new SystemControlSkill());
         register(new UpdateSkill());
         register(new OcrSkill());
-        register(new CameraSkill(viewport));
+        register(new CameraSkill(viewport, watcher));
+        register(new WatchSkill(viewport, watcher));
         register(new ScreenshotSkill(viewport));
         register(new WindowSkill());
         register(new AppLauncherSkill());
         register(new FileSearchSkill());
         register(new HelpSkill(this));
+        register(new TrainingSkill(journal));
 
         // Tier 2 - online.
         register(new WeatherSkill());
@@ -53,13 +58,16 @@ public final class Brain {
         register(new NewsSkill());
 
         // Tier 3 - catch-all. Must sort last.
-        LlmSkill llm = new LlmSkill();
+        LlmSkill llm = new LlmSkill(viewport);
         register(new TranslateSkill(viewport, llm));
         register(new ClipboardSkill(viewport, llm));
-        register(new VisionSkill(viewport));
+        register(new VisionSkill(viewport, watcher));
         register(llm);
 
         skills.sort(Comparator.comparingInt(Skill::priority));
+
+        // Loading the model is the slowest thing Jungey ever waits for, so start it now.
+        pool.submit(llm::warmUp);
     }
 
     public void register(Skill skill) {
@@ -102,13 +110,32 @@ public final class Brain {
 
         final Skill skill = chosen;
         return CompletableFuture.supplyAsync(() -> {
+            long started = System.nanoTime();
+            SkillResult result;
             try {
-                return skill.run(input.trim());
+                result = skill.run(input.trim());
             } catch (Exception e) {
                 String msg = e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage();
-                return SkillResult.error(skill.name() + " failed: " + msg);
+                result = SkillResult.error(skill.name() + " failed: " + msg);
             }
+
+            // Feedback about an exchange is not itself an exchange worth learning from.
+            if (!(skill instanceof TrainingSkill)) {
+                journal.record(input.trim(), skill.name(), result, modelFor(skill),
+                        (System.nanoTime() - started) / 1_000_000);
+            }
+            return result;
         }, pool);
+    }
+
+    /** Which model wrote a reply, so data from before and after a model change can be told apart. */
+    private static String modelFor(Skill skill) {
+        Config cfg = Config.get();
+        return switch (skill.name()) {
+            case "converse", "translate", "clipboard" -> cfg.str("llm.model", "llama3.2:3b");
+            case "vision", "watch" -> cfg.str("llm.visionModel", "moondream");
+            default -> null;
+        };
     }
 
     /** True if this utterance will need the network or a model, so the HUD can show "thinking". */
@@ -124,5 +151,7 @@ public final class Brain {
 
     public void shutdown() {
         pool.shutdownNow();
+        watcher.stop();
+        journal.close();
     }
 }

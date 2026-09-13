@@ -38,6 +38,9 @@ open firefox
 open camera
 take a photo
 record video
+watch this
+what happened
+stop watching
 screenshot
 what is 15% of 240
 what is on my screen
@@ -60,6 +63,10 @@ volume up
 lock the screen
 purple, what time is it
 voice off
+good answer
+the correct answer is Kathmandu
+training stats
+export training data
 clear
 exit
 ```
@@ -71,7 +78,7 @@ wants the utterance. First one to claim it wins.
 
 | Tier | Priority | Skills | Cost |
 |---|---|---|---|
-| Local | 5–99 | help, time, maths, voice, timers, notes, diagnostics, system, network, controls, updates, ocr, camera, screenshot, windows, launcher, find, translate, clipboard | instant, offline |
+| Local | 5–99 | help, time, maths, voice, timers, notes, diagnostics, system, network, controls, updates, ocr, camera, screenshot, windows, launcher, find, translate, clipboard, training | instant, offline |
 | Online | 200–999 | weather, vision, lookup, news | one HTTP call, or a local vision model |
 | Model | 9000 | converse | local LLM, catch-all |
 
@@ -159,7 +166,9 @@ unzip vosk-model-en-us-0.22.zip -d ~/.local/share/vosk
 mv ~/.local/share/vosk/vosk-model-en-us-0.22 ~/.local/share/vosk/model
 ```
 
-That one is 1.8 GB and wants a few GB of RAM. `vosk-model-small-en-us-0.15` is 40 MB and
+That one is 1.8 GB and wants a few GB of RAM. On a laptop CPU, move its `rescore` and `rnnlm`
+folders out of the model directory: they are optional rescoring passes that keep a whole core
+busy, fall behind live speech and drop audio - which is exactly when a wake word goes unheard. `vosk-model-small-en-us-0.15` is 40 MB and
 plenty for commands if you would rather not spend the disk. The status bar shows `MIC WAKE`
 while waiting for the wake word and `MIC LIVE` while a command is being taken. With no
 model installed Jungey says so once at boot and stays keyboard-only.
@@ -175,6 +184,15 @@ sudo apt install ffmpeg cheese
 
 Photos discard the first 30 frames, because webcams open dark and need a moment to settle
 their exposure. Recording stops itself after five minutes if nobody says "stop recording".
+
+**Watching a scene** - "watch this" keeps an eye on whatever the camera sees; "what happened"
+(or "brief me") says what changed: something put down, taken away, nudged or moved from one
+spot to another, with a before-and-after picture of each. Detection is pixel arithmetic at two
+frames a second, so it costs almost nothing while nothing happens; a hand passing through
+leaves nothing changed and is not reported as a change. Only real changes go to the vision
+model, which names the objects in the background so the briefing is usually ready when asked.
+Pictures are kept in `~/Pictures/Jungey/watch`. The camera is held while watching, so say
+"stop watching" before opening the preview or recording.
 
 **Notes and reminders** — notes and todos are appended to plain markdown in
 `~/Documents/Jungey`, so they outlive Jungey and can be grepped, synced or edited by hand.
@@ -222,6 +240,14 @@ sentence being spoken without turning speech off — that is what "voice off" is
 exchange is appended to `~/.local/share/jungey/transcript.log`, so the conversation
 outlives the window.
 
+## Training data
+
+Every exchange is saved to a local SQLite database at `~/.local/share/jungey/jungey.db`.
+Say `good answer`, `bad answer` or `the correct answer is …` straight after a reply to rate
+or correct it, and `export training data` to write the conversations out as chat-format
+JSONL for fine-tuning. [docs/TRAINING.md](docs/TRAINING.md) covers the rest - Ollama runs
+models but does not train them.
+
 ## Settings
 
 `~/.config/jungey/jungey.properties`, created on first run. Restart to apply.
@@ -242,6 +268,7 @@ outlives the window.
 | `llm.model` | `llama3.2:3b` | any model you've pulled |
 | `llm.visionModel` | `moondream` | used for screen and camera questions |
 | `llm.url` | `http://localhost:11434` | Ollama endpoint |
+| `llm.keepAlive` | `60m` | how long Ollama keeps a model loaded; reloading from disk is the slow part |
 | `ui.alwaysOnTop` | `false` | pin above other windows |
 
 ## Roadmap

@@ -5,6 +5,7 @@ import dev.suven.jungey.core.Personality;
 import dev.suven.jungey.core.Skill;
 import dev.suven.jungey.core.SkillResult;
 import dev.suven.jungey.core.Viewport;
+import dev.suven.jungey.watch.SceneWatcher;
 
 import java.io.IOException;
 import java.io.OutputStream;
@@ -38,13 +39,17 @@ public class CameraSkill implements Skill {
     /** A recording nobody stops would run until the disk filled. */
     private static final int MAX_RECORDING_SECONDS = 300;
 
+    private static final String WATCHING = "The camera is watching the scene. Say \"stop watching\" first.";
+
     private final Viewport viewport;
+    private final SceneWatcher watcher;
 
     private Process recording;
     private Path recordingFile;
 
-    public CameraSkill(Viewport viewport) {
+    public CameraSkill(Viewport viewport, SceneWatcher watcher) {
         this.viewport = viewport;
+        this.watcher = watcher;
     }
 
     @Override
@@ -104,6 +109,7 @@ public class CameraSkill implements Skill {
     }
 
     private SkillResult openPreview(String device) {
+        if (watcher.running()) return SkillResult.error(WATCHING);
         if (viewport.cameraVisible()) {
             return SkillResult.of("The camera is already open.");
         }
@@ -125,8 +131,8 @@ public class CameraSkill implements Skill {
     private SkillResult takePhoto(String device) throws IOException, InterruptedException {
         Path out = destination("Pictures", "photo-" + LocalDateTime.now().format(STAMP) + ".jpg");
 
-        // A webcam opens once only, so during a preview the picture comes off the live feed.
-        byte[] live = viewport.currentFrame();
+        // A webcam opens once only, so during a preview or a watch the picture comes off the live feed.
+        byte[] live = watcher.running() ? watcher.latestJpeg() : viewport.currentFrame();
         if (live != null) {
             Files.write(out, live);
             viewport.showImage(out, out.getFileName().toString());
@@ -162,6 +168,7 @@ public class CameraSkill implements Skill {
         if (recording != null && recording.isAlive()) {
             return SkillResult.error("Already recording. Say \"stop recording\" first.");
         }
+        if (watcher.running()) return SkillResult.error(WATCHING);
 
         // Only one process can hold the camera, so the preview yields - and needs a
         // moment to actually let go of the device before ffmpeg can claim it.

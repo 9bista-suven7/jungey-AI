@@ -27,6 +27,12 @@ public class ReactorView extends Canvas {
     private static final Color DEEP = Color.web("#0a6f8a");
     private static final Color RED = Color.web("#ff4d5e");
 
+    /**
+     * 30 frames a second is plenty for rings this slow, and halves the cost of redrawing
+     * the glow - JavaFX would otherwise repaint the canvas on every 60Hz pulse.
+     */
+    private static final long FRAME_NANOS = 1_000_000_000L / 30;
+
     private State state = State.IDLE;
 
     /** Master rotation angle, advanced every frame. */
@@ -46,8 +52,8 @@ public class ReactorView extends Canvas {
         timer = new AnimationTimer() {
             @Override
             public void handle(long now) {
-                if (lastFrame == 0) lastFrame = now;
-                double dt = Math.min(0.05, (now - lastFrame) / 1_000_000_000.0);
+                if (lastFrame != 0 && now - lastFrame < FRAME_NANOS) return;
+                double dt = lastFrame == 0 ? 0 : Math.min(0.05, (now - lastFrame) / 1_000_000_000.0);
                 lastFrame = now;
                 step(dt);
                 draw();
@@ -61,6 +67,7 @@ public class ReactorView extends Canvas {
 
     public void stop() {
         timer.stop();
+        lastFrame = 0;
     }
 
     public void setState(State next) {
