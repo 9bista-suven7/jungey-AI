@@ -50,6 +50,7 @@ public class JungeyApp extends Application implements dev.suven.jungey.core.View
 
     private double dragOffsetX, dragOffsetY;
     private boolean earsAnnounced;
+    private boolean spokenTo;
 
     @Override
     public void start(Stage stage) {
@@ -58,7 +59,10 @@ public class JungeyApp extends Application implements dev.suven.jungey.core.View
         reactor = new ReactorView(132);
         console = new ConsoleView();
         listener = new Listener(speaker,
-                heard -> Platform.runLater(() -> submit(heard)),
+                heard -> Platform.runLater(() -> {
+                    spokenTo = true;
+                    submit(heard);
+                }),
                 state -> Platform.runLater(() -> onEars(state)));
         statusBar = new StatusBar(speaker::statusLabel, this::earsLabel);
 
@@ -190,7 +194,10 @@ public class JungeyApp extends Application implements dev.suven.jungey.core.View
         input.setPromptText("Ask me something…  (try \"help\")");
         input.getStyleClass().add("prompt-field");
         HBox.setHgrow(input, Priority.ALWAYS);
-        input.setOnAction(e -> submit(input.getText()));
+        input.setOnAction(e -> {
+            spokenTo = false;
+            submit(input.getText());
+        });
 
         HBox box = new HBox(10, prompt, input);
         box.setAlignment(Pos.CENTER_LEFT);
@@ -274,6 +281,9 @@ public class JungeyApp extends Application implements dev.suven.jungey.core.View
                 console.addDetail(result.detail());
             }
             reactor.setState(ReactorView.State.IDLE);
+
+            // Having just been spoken to, stay open briefly so a follow-up needs no wake word.
+            if (spokenTo) listener.followUp();
         });
     }
 
@@ -310,6 +320,43 @@ public class JungeyApp extends Application implements dev.suven.jungey.core.View
     @Override
     public void showImage(java.nio.file.Path file, String caption) {
         console.addImage(file, caption);
+    }
+
+    /** Skills run off the UI thread, but the clipboard may only be read on it. */
+    @Override
+    public String clipboardText() {
+        if (Platform.isFxApplicationThread()) return readClipboard();
+
+        java.util.concurrent.CompletableFuture<String> answer = new java.util.concurrent.CompletableFuture<>();
+        Platform.runLater(() -> answer.complete(readClipboard()));
+        try {
+            return answer.get(2, java.util.concurrent.TimeUnit.SECONDS);
+        } catch (Exception e) {
+            return "";
+        }
+    }
+
+    @Override
+    public void announce(String text) {
+        Platform.runLater(() -> {
+            console.addJungey(text);
+            speaker.say(text);
+            notifyDesktop(text);
+        });
+    }
+
+    /** The window is often not what is being looked at, so it goes to the desktop too. */
+    private static void notifyDesktop(String text) {
+        try {
+            new ProcessBuilder("notify-send", "-a", "Jungey", "Jungey", text).start();
+        } catch (java.io.IOException e) {
+            // No notification daemon; the transcript and the voice already carried it.
+        }
+    }
+
+    private static String readClipboard() {
+        javafx.scene.input.Clipboard board = javafx.scene.input.Clipboard.getSystemClipboard();
+        return board.hasString() ? board.getString() : "";
     }
 
     private void shutdown() {

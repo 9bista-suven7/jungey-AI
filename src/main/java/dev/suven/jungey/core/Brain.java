@@ -31,10 +31,17 @@ public final class Brain {
         // Tier 1 - local, instant.
         register(new TimeSkill());
         register(new VoiceSkill(speaker));
+        register(new TimerSkill(viewport));
+        register(new NoteSkill());
         register(new SystemSkill());
+        register(new NetworkSkill());
+        register(new SystemControlSkill());
+        register(new OcrSkill());
         register(new CameraSkill(viewport));
         register(new ScreenshotSkill(viewport));
+        register(new WindowSkill());
         register(new AppLauncherSkill());
+        register(new FileSearchSkill());
         register(new HelpSkill(this));
 
         // Tier 2 - online.
@@ -43,7 +50,10 @@ public final class Brain {
         register(new NewsSkill());
 
         // Tier 3 - catch-all. Must sort last.
-        register(new LlmSkill());
+        LlmSkill llm = new LlmSkill();
+        register(new ClipboardSkill(viewport, llm));
+        register(new VisionSkill(viewport));
+        register(llm);
 
         skills.sort(Comparator.comparingInt(Skill::priority));
     }

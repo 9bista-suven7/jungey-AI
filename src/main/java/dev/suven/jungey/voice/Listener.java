@@ -53,6 +53,7 @@ public final class Listener {
 
     private volatile State state = State.OFF;
     private volatile boolean running;
+    private volatile long commandDeadline;
     private Thread thread;
     private Model model;
 
@@ -137,9 +138,18 @@ public final class Listener {
         }
     }
 
+    /**
+     * Stay open for another command without the wake word. Used straight after a reply,
+     * so a conversation does not need the name said before every sentence.
+     */
+    public void followUp() {
+        if (!running || state == State.OFF) return;
+        commandDeadline = System.currentTimeMillis() + COMMAND_WINDOW_MS;
+        setState(State.LISTENING);
+    }
+
     private void listen(TargetDataLine line, Recognizer recognizer) {
         byte[] buffer = new byte[4096];
-        long commandDeadline = 0;
 
         while (running && !Thread.currentThread().isInterrupted()) {
             int read = line.read(buffer, 0, buffer.length);

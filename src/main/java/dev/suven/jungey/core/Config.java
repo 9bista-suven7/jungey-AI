@@ -41,6 +41,7 @@ public final class Config {
         props.setProperty("weather.location", "");   // blank = auto-detect by IP
         props.setProperty("llm.backend", "ollama");  // ollama | none
         props.setProperty("llm.model", "llama3.2:3b");
+        props.setProperty("llm.visionModel", "moondream");
         props.setProperty("llm.url", "http://localhost:11434");
         props.setProperty("ui.alwaysOnTop", "false");
 

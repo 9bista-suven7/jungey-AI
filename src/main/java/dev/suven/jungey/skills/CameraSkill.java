@@ -137,6 +137,15 @@ public class CameraSkill implements Skill {
             return SkillResult.error("The camera is still warming up. Try again in a second.");
         }
 
+        if (!captureStill(device, out)) {
+            return SkillResult.error("The camera failed to take a photo.");
+        }
+        viewport.showImage(out, out.getFileName().toString());
+        return SkillResult.of("Got it.");
+    }
+
+    /** One frame from the webcam, exposure allowed to settle first. */
+    static boolean captureStill(String device, Path out) throws IOException, InterruptedException {
         Process p = ffmpeg(List.of(
                 "-f", "v4l2", "-video_size", "1280x720", "-i", device,
                 "-vf", "select=gte(n\\," + WARMUP_FRAMES + ")", "-frames:v", "1",
@@ -144,13 +153,9 @@ public class CameraSkill implements Skill {
 
         if (!p.waitFor(30, TimeUnit.SECONDS)) {
             p.destroyForcibly();
-            return SkillResult.error("The camera did not respond.");
+            return false;
         }
-        if (p.exitValue() != 0 || !Files.exists(out)) {
-            return SkillResult.error("The camera failed to take a photo.");
-        }
-        viewport.showImage(out, out.getFileName().toString());
-        return SkillResult.of("Got it.");
+        return p.exitValue() == 0 && Files.exists(out);
     }
 
     private SkillResult startRecording(String device) throws IOException, InterruptedException {

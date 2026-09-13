@@ -25,4 +25,14 @@ public interface Viewport {
 
     /** Show a captured image inline, with a caption beneath it. */
     void showImage(Path file, String caption);
+
+    /** Whatever text is on the system clipboard, or "" when it holds none. */
+    String clipboardText();
+
+    /**
+     * Say something the user did not ask for just now - a timer finishing, a reminder
+     * coming due. Reaches the transcript, the voice and the desktop's notifications,
+     * since the window may well not be the thing being looked at.
+     */
+    void announce(String text);
 }

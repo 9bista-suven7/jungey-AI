@@ -59,7 +59,21 @@ public class ScreenshotSkill implements Skill {
     @Override
     public SkillResult run(String input) throws Exception {
         Path out = CameraSkill.destination("Pictures", "screen-" + LocalDateTime.now().format(STAMP) + ".png");
+        try {
+            captureScreen(out);
+        } catch (IllegalStateException e) {
+            return SkillResult.error(e.getMessage());
+        }
+        viewport.showImage(out, out.getFileName() + "  (" + Files.size(out) / 1024 + " KB)");
+        return SkillResult.of("Captured.");
+    }
 
+    /**
+     * Grab the whole screen into {@code out}.
+     *
+     * @throws IllegalStateException if nothing on this machine can take a screenshot
+     */
+    static void captureScreen(Path out) throws IOException, InterruptedException {
         List<String> cmd;
         if (CameraSkill.onPath("xfce4-screenshooter")) {
             cmd = List.of("xfce4-screenshooter", "-f", "-s", out.toString());
@@ -68,12 +82,13 @@ public class ScreenshotSkill implements Skill {
         } else if (CameraSkill.onPath("ffmpeg")) {
             String display = System.getenv("DISPLAY");
             if (display == null || display.isBlank()) {
-                return SkillResult.error("No display to capture.");
+                throw new IllegalStateException("No display to capture.");
             }
             cmd = List.of("ffmpeg", "-hide_banner", "-loglevel", "error",
                     "-f", "x11grab", "-i", display, "-frames:v", "1", "-y", out.toString());
         } else {
-            return SkillResult.error("No screenshot tool installed. Try: sudo apt install xfce4-screenshooter");
+            throw new IllegalStateException(
+                    "No screenshot tool installed. Try: sudo apt install xfce4-screenshooter");
         }
 
         Process p = new ProcessBuilder(cmd)
@@ -83,12 +98,10 @@ public class ScreenshotSkill implements Skill {
 
         if (!p.waitFor(20, TimeUnit.SECONDS)) {
             p.destroyForcibly();
-            return SkillResult.error("The screenshot timed out.");
+            throw new IllegalStateException("The screenshot timed out.");
         }
         if (!Files.exists(out)) {
-            return SkillResult.error("The screenshot failed.");
+            throw new IllegalStateException("The screenshot failed.");
         }
-        viewport.showImage(out, out.getFileName() + "  (" + Files.size(out) / 1024 + " KB)");
-        return SkillResult.of("Captured.");
     }
 }

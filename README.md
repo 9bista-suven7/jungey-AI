@@ -39,6 +39,19 @@ open camera
 take a photo
 record video
 screenshot
+what is on my screen
+read my screen
+what does this error mean
+explain this
+note: pick up the dry cleaning
+add to my todo call the bank
+set a timer for 10 minutes
+remind me in 5 minutes to stretch
+am I online
+switch to firefox
+find my invoice pdf
+volume up
+lock the screen
 voice off
 clear
 exit
@@ -51,8 +64,8 @@ wants the utterance. First one to claim it wins.
 
 | Tier | Priority | Skills | Cost |
 |---|---|---|---|
-| Local | 5–99 | help, time, voice, system, camera, screenshot, launcher | instant, offline |
-| Online | 200–999 | weather, lookup, news | one HTTP call |
+| Local | 5–99 | help, time, voice, timers, notes, system, network, controls, ocr, camera, screenshot, windows, launcher, find, clipboard | instant, offline |
+| Online | 200–999 | weather, vision, lookup, news | one HTTP call, or a local vision model |
 | Model | 9000 | converse | local LLM, catch-all |
 
 That ordering is the whole point: "what time is it" never touches a model, so Jungey
@@ -144,6 +157,30 @@ sudo apt install ffmpeg cheese
 Photos discard the first 30 frames, because webcams open dark and need a moment to settle
 their exposure. Recording stops itself after five minutes if nobody says "stop recording".
 
+**Notes and reminders** — notes and todos are appended to plain markdown in
+`~/Documents/Jungey`, so they outlive Jungey and can be grepped, synced or edited by hand.
+Timers live in memory and speak up when they are due, through the transcript, the voice
+and the desktop's notifications — the window is usually not what you are looking at.
+
+**Reading text** — "read my screen" runs OCR through tesseract and returns the characters
+that are actually there. Prefer it over the vision model for anything exact: a version
+number, a stack trace, an error code.
+
+```bash
+sudo apt install tesseract-ocr
+```
+
+**Sight** — "what is on my screen", "what does this error mean", "what am I holding".
+Jungey grabs a frame, scales it down and asks a local vision model about it. Nothing is
+uploaded.
+
+```bash
+ollama pull moondream
+```
+
+`moondream` is about 1.7 GB and answers in a few seconds on a CPU. `llava:7b` sees more
+detail and takes longer; set `llm.visionModel` to whichever you pulled.
+
 **Conversation** — anything no skill matched goes to a local model via Ollama.
 
 ```bash
@@ -172,6 +209,7 @@ input just says the reasoning core is offline.
 | `camera.device` | `/dev/video0` | which webcam to use |
 | `weather.location` | *(blank)* | blank = detect by IP |
 | `llm.model` | `llama3.2:3b` | any model you've pulled |
+| `llm.visionModel` | `moondream` | used for screen and camera questions |
 | `llm.url` | `http://localhost:11434` | Ollama endpoint |
 | `ui.alwaysOnTop` | `false` | pin above other windows |
 
@@ -179,7 +217,7 @@ input just says the reasoning core is offline.
 
 - [x] **v0.1** — HUD, boot sequence, command router, 7 skills
 - [x] **v0.2** — speech input (Vosk, offline) and the "Jungey" wake word
-- [ ] **v0.3** — memory: notes, reminders, timers in SQLite
-- [ ] **v0.4** — media and system control (volume, brightness, playerctl)
+- [x] **v0.3** — memory: notes, reminders, timers (markdown on disk, timers in memory)
+- [x] **v0.4** — system control (volume, lock, windows, network)
 - [ ] **v0.5** — tray icon, global hotkey, autostart
 - [ ] **v1.0** — packaged `.deb`
