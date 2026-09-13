@@ -4,9 +4,11 @@ import dev.suven.jungey.core.Brain;
 import dev.suven.jungey.core.Config;
 import dev.suven.jungey.core.Personality;
 import dev.suven.jungey.core.SkillResult;
+import dev.suven.jungey.ui.CameraView;
 import dev.suven.jungey.ui.ConsoleView;
 import dev.suven.jungey.ui.ReactorView;
 import dev.suven.jungey.ui.StatusBar;
+import dev.suven.jungey.voice.Listener;
 import dev.suven.jungey.voice.Speaker;
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
@@ -34,17 +36,20 @@ import javafx.util.Duration;
  * app; it is dragged by its header and closed from the header button or by typing
  * "exit".
  */
-public class JungeyApp extends Application {
+public class JungeyApp extends Application implements dev.suven.jungey.core.Viewport {
 
-    private final Brain brain = new Brain();
     private final Speaker speaker = new Speaker();
+    private final Brain brain = new Brain(speaker, this);
+    private final CameraView camera = new CameraView();
 
     private ConsoleView console;
     private ReactorView reactor;
     private StatusBar statusBar;
+    private Listener listener;
     private TextField input;
 
     private double dragOffsetX, dragOffsetY;
+    private boolean earsAnnounced;
 
     @Override
     public void start(Stage stage) {
@@ -52,7 +57,10 @@ public class JungeyApp extends Application {
 
         reactor = new ReactorView(132);
         console = new ConsoleView();
-        statusBar = new StatusBar(speaker.available() ? speaker.engineName() : "off");
+        listener = new Listener(speaker,
+                heard -> Platform.runLater(() -> submit(heard)),
+                state -> Platform.runLater(() -> onEars(state)));
+        statusBar = new StatusBar(speaker::statusLabel, this::earsLabel);
 
         BorderPane root = new BorderPane();
         root.getStyleClass().add("root-pane");
@@ -84,6 +92,51 @@ public class JungeyApp extends Application {
         input.requestFocus();
 
         boot();
+        startEars();
+    }
+
+    /**
+     * Speech input is optional: without the model Jungey stays keyboard-only and says so
+     * once, rather than failing at every utterance.
+     */
+    private void startEars() {
+        if (!Config.get().bool("voice.input.enabled")) return;
+
+        if (!Listener.modelInstalled()) {
+            console.addSystem("Speech input idle - no voice model at " + Listener.modelPath() + ".");
+            return;
+        }
+        if (!Listener.micPresent()) {
+            console.addSystem("Speech input idle - no microphone found.");
+            return;
+        }
+
+        console.addSystem("Loading voice model…");
+        listener.start();
+    }
+
+    private String earsLabel() {
+        return switch (listener.state()) {
+            case OFF -> "off";
+            case WAITING -> "wake";
+            case LISTENING -> "live";
+        };
+    }
+
+    private void onEars(Listener.State state) {
+        if (state == Listener.State.LISTENING) {
+            speaker.stop();   // stop talking the moment it is addressed
+            console.addSystem("Yes?");
+            reactor.setState(ReactorView.State.THINKING);
+        } else if (state == Listener.State.WAITING) {
+            // The model takes a while to load, so the first WAITING is when the ears truly open.
+            if (!earsAnnounced) {
+                earsAnnounced = true;
+                console.addSystem("Listening for \""
+                        + Config.get().str("voice.input.wakeWord", "jungey") + "\".");
+            }
+            reactor.setState(ReactorView.State.IDLE);
+        }
     }
 
     private HBox buildHeader(Stage stage) {
@@ -224,9 +277,46 @@ public class JungeyApp extends Application {
         });
     }
 
+    @Override
+    public void showCamera(String device) {
+        Platform.runLater(() -> {
+            try {
+                camera.start(device);
+                console.addNode(camera);
+            } catch (java.io.IOException e) {
+                console.addError("The camera would not start: " + e.getMessage());
+            }
+        });
+    }
+
+    @Override
+    public void hideCamera() {
+        Platform.runLater(() -> {
+            camera.stop();
+            console.removeNode(camera);
+        });
+    }
+
+    @Override
+    public boolean cameraVisible() {
+        return camera.isRunning();
+    }
+
+    @Override
+    public byte[] currentFrame() {
+        return camera.latestFrame();
+    }
+
+    @Override
+    public void showImage(java.nio.file.Path file, String caption) {
+        console.addImage(file, caption);
+    }
+
     private void shutdown() {
+        camera.stop();
         reactor.stop();
         statusBar.stop();
+        listener.stop();
         speaker.shutdown();
         brain.shutdown();
         Platform.exit();

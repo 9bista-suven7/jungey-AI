@@ -34,6 +34,10 @@ public final class Config {
         props.setProperty("voice.enabled", "true");
         props.setProperty("voice.engine", "auto");   // auto | piper | espeak | none
         props.setProperty("voice.rate", "165");
+        props.setProperty("voice.input.enabled", "true");
+        props.setProperty("voice.input.wakeWord", "jungey");
+        props.setProperty("voice.input.model",
+                System.getProperty("user.home") + "/.local/share/vosk/model");
         props.setProperty("weather.location", "");   // blank = auto-detect by IP
         props.setProperty("llm.backend", "ollama");  // ollama | none
         props.setProperty("llm.model", "llama3.2:3b");

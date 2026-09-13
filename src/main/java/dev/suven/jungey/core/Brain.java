@@ -1,6 +1,7 @@
 package dev.suven.jungey.core;
 
 import dev.suven.jungey.skills.*;
+import dev.suven.jungey.voice.Speaker;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -26,10 +27,13 @@ public final class Brain {
         return t;
     });
 
-    public Brain() {
+    public Brain(Speaker speaker, Viewport viewport) {
         // Tier 1 - local, instant.
         register(new TimeSkill());
+        register(new VoiceSkill(speaker));
         register(new SystemSkill());
+        register(new CameraSkill(viewport));
+        register(new ScreenshotSkill(viewport));
         register(new AppLauncherSkill());
         register(new HelpSkill(this));
 

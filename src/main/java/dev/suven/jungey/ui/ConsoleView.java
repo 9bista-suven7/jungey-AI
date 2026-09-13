@@ -102,6 +102,29 @@ public class ConsoleView extends ScrollPane {
         add(label);
     }
 
+    /** A captured picture, shown inline with a caption. */
+    public void addImage(java.nio.file.Path file, String caption) {
+        javafx.scene.image.ImageView picture = new javafx.scene.image.ImageView(
+                new javafx.scene.image.Image(file.toUri().toString(), 440, 0, true, true));
+        picture.setPreserveRatio(true);
+
+        Label label = new Label(caption);
+        label.getStyleClass().add("line-system");
+
+        VBox box = new VBox(6, picture, label);
+        box.getStyleClass().add("detail-box");
+        add(box);
+    }
+
+    /** Put an arbitrary node in the transcript - used for the live camera feed. */
+    public void addNode(javafx.scene.Node node) {
+        add(node);
+    }
+
+    public void removeNode(javafx.scene.Node node) {
+        Platform.runLater(() -> lines.getChildren().remove(node));
+    }
+
     private void add(javafx.scene.Node node) {
         Platform.runLater(() -> lines.getChildren().add(node));
     }

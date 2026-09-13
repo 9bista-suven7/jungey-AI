@@ -126,6 +126,21 @@
     -fx-padding: 11 15 11 15;
 }
 
+.camera-view {
+    -fx-background-color: rgba(56, 232, 255, 0.06);
+    -fx-background-radius: 7;
+    -fx-border-color: rgba(56, 232, 255, 0.35);
+    -fx-border-radius: 7;
+    -fx-border-width: 1;
+}
+
+.camera-caption {
+    -fx-text-fill: #38e8ff;
+    -fx-font-family: "monospace";
+    -fx-font-size: 11px;
+    -fx-letter-spacing: 2;
+}
+
 .detail {
     -fx-font-family: "DejaVu Sans Mono", "Liberation Mono", monospace;
     -fx-font-size: 11.5px;

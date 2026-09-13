@@ -35,6 +35,11 @@ weather in Kathmandu
 who is Nikola Tesla
 news
 open firefox
+open camera
+take a photo
+record video
+screenshot
+voice off
 clear
 exit
 ```
@@ -46,7 +51,7 @@ wants the utterance. First one to claim it wins.
 
 | Tier | Priority | Skills | Cost |
 |---|---|---|---|
-| Local | 5–99 | help, time, system, launcher | instant, offline |
+| Local | 5–99 | help, time, voice, system, camera, screenshot, launcher | instant, offline |
 | Online | 200–999 | weather, lookup, news | one HTTP call |
 | Model | 9000 | converse | local LLM, catch-all |
 
@@ -69,7 +74,9 @@ src/main/java/dev/suven/jungey/
 │   ├── ConsoleView.java  transcript with typewriter effect
 │   └── StatusBar.java    live CPU / memory / battery
 ├── net/Http.java         shared HTTP client
-└── voice/Speaker.java    text to speech
+└── voice/
+    ├── Speaker.java      text to speech
+    └── Listener.java     wake word and speech recognition
 ```
 
 ## Adding a skill
@@ -101,9 +108,41 @@ Jungey works without both of these. They're upgrades, not requirements.
 sudo apt install espeak-ng
 ```
 
+Speech is on once an engine is installed. Say `voice off` to mute it and `voice on` to
+bring it back; the choice is written to the config, so it survives a restart. `voice`
+on its own reports the current state.
+
 For a much better voice, install [Piper](https://github.com/rhasspy/piper) and drop a
 `.onnx` model at `~/.local/share/piper/en_GB-alan-medium.onnx`. Jungey prefers Piper
 when it finds it.
+
+**Speech input** — say "Jungey" and it listens for the next thing you say; "Jungey, what
+time is it" in one breath works too. Recognition is offline via Vosk, so audio never
+leaves the machine. The engine comes from Maven but the model does not:
+
+```bash
+mkdir -p ~/.local/share/vosk
+curl -LO https://alphacephei.com/vosk/models/vosk-model-en-us-0.22.zip
+unzip vosk-model-en-us-0.22.zip -d ~/.local/share/vosk
+mv ~/.local/share/vosk/vosk-model-en-us-0.22 ~/.local/share/vosk/model
+```
+
+That one is 1.8 GB and wants a few GB of RAM. `vosk-model-small-en-us-0.15` is 40 MB and
+plenty for commands if you would rather not spend the disk. The status bar shows `MIC WAKE`
+while waiting for the wake word and `MIC LIVE` while a command is being taken. With no
+model installed Jungey says so once at boot and stays keyboard-only.
+
+**Camera and screen** — "open camera", "take a photo", "record video", "stop recording"
+and "screenshot". Stills and screenshots land in `~/Pictures/Jungey`, video in
+`~/Videos/Jungey`. Capture needs ffmpeg; the preview uses Cheese, and screenshots prefer
+whatever the desktop already provides.
+
+```bash
+sudo apt install ffmpeg cheese
+```
+
+Photos discard the first 30 frames, because webcams open dark and need a moment to settle
+their exposure. Recording stops itself after five minutes if nobody says "stop recording".
 
 **Conversation** — anything no skill matched goes to a local model via Ollama.
 
@@ -124,9 +163,13 @@ input just says the reasoning core is offline.
 |---|---|---|
 | `user.name` | your login name | what Jungey calls you |
 | `user.honorific` | `sir` | used for flourish |
-| `voice.enabled` | `true` | set `false` to mute |
+| `voice.enabled` | `true` | what `voice on` / `voice off` writes |
 | `voice.engine` | `auto` | `auto` / `piper` / `espeak` / `none` |
 | `voice.rate` | `165` | espeak words per minute |
+| `voice.input.enabled` | `true` | set `false` to stop listening entirely |
+| `voice.input.wakeWord` | `jungey` | what rouses it |
+| `voice.input.model` | `~/.local/share/vosk/model` | unpacked Vosk model |
+| `camera.device` | `/dev/video0` | which webcam to use |
 | `weather.location` | *(blank)* | blank = detect by IP |
 | `llm.model` | `llama3.2:3b` | any model you've pulled |
 | `llm.url` | `http://localhost:11434` | Ollama endpoint |
@@ -135,7 +178,7 @@ input just says the reasoning core is offline.
 ## Roadmap
 
 - [x] **v0.1** — HUD, boot sequence, command router, 7 skills
-- [ ] **v0.2** — speech input (Vosk, offline) and the "Jungey" wake word
+- [x] **v0.2** — speech input (Vosk, offline) and the "Jungey" wake word
 - [ ] **v0.3** — memory: notes, reminders, timers in SQLite
 - [ ] **v0.4** — media and system control (volume, brightness, playerctl)
 - [ ] **v0.5** — tray icon, global hotkey, autostart

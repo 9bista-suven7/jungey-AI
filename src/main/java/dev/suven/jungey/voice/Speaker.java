@@ -25,17 +25,18 @@ public final class Speaker {
     });
 
     private final Engine engine;
+    private volatile boolean muted;
+    private volatile boolean speaking;
     private Process current;
 
     public Speaker() {
         this.engine = detect();
-        System.out.println("[jungey] voice engine: " + engine);
+        this.muted = !Config.get().bool("voice.enabled");
+        System.out.println("[jungey] voice engine: " + engine + (muted ? " (muted)" : ""));
     }
 
     private static Engine detect() {
         Config cfg = Config.get();
-        if (!cfg.bool("voice.enabled")) return Engine.NONE;
-
         String forced = cfg.str("voice.engine", "auto");
         if (forced.equals("none")) return Engine.NONE;
         if (forced.equals("piper") && onPath("piper")) return Engine.PIPER;
@@ -60,6 +61,7 @@ public final class Speaker {
         }
     }
 
+    /** True if a speech engine was found - independent of whether the user has muted it. */
     public boolean available() {
         return engine != Engine.NONE;
     }
@@ -68,9 +70,32 @@ public final class Speaker {
         return engine.name().toLowerCase();
     }
 
+    public boolean muted() {
+        return muted;
+    }
+
+    /** True while a line is actually being spoken - the ears mute themselves during this. */
+    public boolean speaking() {
+        return speaking;
+    }
+
+    /** Silence or restore speech for this session, and remember the choice for the next one. */
+    public void setMuted(boolean value) {
+        muted = value;
+        if (value) stop();
+        Config cfg = Config.get();
+        cfg.set("voice.enabled", String.valueOf(!value));
+        cfg.save();
+    }
+
+    /** What the status bar shows: the engine while speaking, "off" while muted or unavailable. */
+    public String statusLabel() {
+        return (engine == Engine.NONE || muted) ? "off" : engineName();
+    }
+
     /** Queue a line to be spoken. Returns immediately. */
     public void say(String text) {
-        if (engine == Engine.NONE || text == null || text.isBlank()) return;
+        if (engine == Engine.NONE || muted || text == null || text.isBlank()) return;
 
         // Strip anything that reads badly aloud.
         String clean = text.replaceAll("[\\[\\]{}#*_`|]", " ")
@@ -79,10 +104,13 @@ public final class Speaker {
         if (clean.isEmpty()) return;
 
         voice.submit(() -> {
+            speaking = true;
             try {
                 speakNow(clean);
             } catch (Exception e) {
                 System.err.println("[jungey] speech failed: " + e.getMessage());
+            } finally {
+                speaking = false;
             }
         });
     }

@@ -15,6 +15,7 @@ import javafx.util.Duration;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Locale;
+import java.util.function.Supplier;
 
 /** Always-on vitals along the bottom edge: clock, CPU, memory, battery. */
 public class StatusBar extends HBox {
@@ -27,10 +28,15 @@ public class StatusBar extends HBox {
     private final Label mem = cell();
     private final Label battery = cell();
     private final Label voice = cell();
+    private final Label ears = cell();
 
     private final Timeline ticker;
+    private final Supplier<String> voiceLabel;
+    private final Supplier<String> earsLabel;
 
-    public StatusBar(String voiceEngine) {
+    public StatusBar(Supplier<String> voiceLabel, Supplier<String> earsLabel) {
+        this.voiceLabel = voiceLabel;
+        this.earsLabel = earsLabel;
         setSpacing(0);
         setAlignment(Pos.CENTER_LEFT);
         setPadding(new Insets(7, 16, 7, 16));
@@ -39,9 +45,7 @@ public class StatusBar extends HBox {
         Region spacer = new Region();
         HBox.setHgrow(spacer, Priority.ALWAYS);
 
-        voice.setText("VOICE " + voiceEngine.toUpperCase());
-
-        getChildren().addAll(clock, sep(), cpu, sep(), mem, sep(), battery, spacer, voice);
+        getChildren().addAll(clock, sep(), cpu, sep(), mem, sep(), battery, spacer, ears, sep(), voice);
 
         // One second is frequent enough to feel live without the CPU reading being noise.
         ticker = new Timeline(new KeyFrame(Duration.seconds(1), e -> refresh()));
@@ -59,6 +63,8 @@ public class StatusBar extends HBox {
 
     private void refresh() {
         clock.setText(LocalTime.now().format(CLOCK));
+        voice.setText("VOICE " + voiceLabel.get().toUpperCase(Locale.ENGLISH));
+        ears.setText("MIC " + earsLabel.get().toUpperCase(Locale.ENGLISH));
         cpu.setText(String.format("CPU %3.0f%%", SysInfo.cpuPercent()));
 
         long[] m = SysInfo.memory();

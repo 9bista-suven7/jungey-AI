@@ -28,6 +28,12 @@
       <artifactId>jackson-databind</artifactId>
       <version>2.18.2</version>
     </dependency>
+    <!-- Offline speech recognition. Ships its own natives; the model is downloaded separately. -->
+    <dependency>
+      <groupId>com.alphacephei</groupId>
+      <artifactId>vosk</artifactId>
+      <version>0.3.45</version>
+    </dependency>
   </dependencies>
 
   <build>
