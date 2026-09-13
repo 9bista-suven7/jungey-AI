@@ -2,6 +2,7 @@ package dev.suven.jungey.core;
 
 import dev.suven.jungey.skills.*;
 import dev.suven.jungey.voice.Speaker;
+import dev.suven.jungey.watch.SceneWatcher;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -22,6 +23,7 @@ public final class Brain {
 
     private final List<Skill> skills = new ArrayList<>();
     private final Journal journal = new Journal();
+    private final SceneWatcher watcher = new SceneWatcher();
     private final ExecutorService pool = Executors.newFixedThreadPool(3, r -> {
         Thread t = new Thread(r, "jungey-worker");
         t.setDaemon(true);
@@ -41,7 +43,8 @@ public final class Brain {
         register(new SystemControlSkill());
         register(new UpdateSkill());
         register(new OcrSkill());
-        register(new CameraSkill(viewport));
+        register(new CameraSkill(viewport, watcher));
+        register(new WatchSkill(viewport, watcher));
         register(new ScreenshotSkill(viewport));
         register(new WindowSkill());
         register(new AppLauncherSkill());
@@ -58,7 +61,7 @@ public final class Brain {
         LlmSkill llm = new LlmSkill(viewport);
         register(new TranslateSkill(viewport, llm));
         register(new ClipboardSkill(viewport, llm));
-        register(new VisionSkill(viewport));
+        register(new VisionSkill(viewport, watcher));
         register(llm);
 
         skills.sort(Comparator.comparingInt(Skill::priority));
@@ -130,7 +133,7 @@ public final class Brain {
         Config cfg = Config.get();
         return switch (skill.name()) {
             case "converse", "translate", "clipboard" -> cfg.str("llm.model", "llama3.2:3b");
-            case "vision" -> cfg.str("llm.visionModel", "moondream");
+            case "vision", "watch" -> cfg.str("llm.visionModel", "moondream");
             default -> null;
         };
     }
@@ -148,6 +151,7 @@ public final class Brain {
 
     public void shutdown() {
         pool.shutdownNow();
+        watcher.stop();
         journal.close();
     }
 }

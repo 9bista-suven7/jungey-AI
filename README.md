@@ -38,6 +38,9 @@ open firefox
 open camera
 take a photo
 record video
+watch this
+what happened
+stop watching
 screenshot
 what is 15% of 240
 what is on my screen
@@ -181,6 +184,15 @@ sudo apt install ffmpeg cheese
 
 Photos discard the first 30 frames, because webcams open dark and need a moment to settle
 their exposure. Recording stops itself after five minutes if nobody says "stop recording".
+
+**Watching a scene** - "watch this" keeps an eye on whatever the camera sees; "what happened"
+(or "brief me") says what changed: something put down, taken away, nudged or moved from one
+spot to another, with a before-and-after picture of each. Detection is pixel arithmetic at two
+frames a second, so it costs almost nothing while nothing happens; a hand passing through
+leaves nothing changed and is not reported as a change. Only real changes go to the vision
+model, which names the objects in the background so the briefing is usually ready when asked.
+Pictures are kept in `~/Pictures/Jungey/watch`. The camera is held while watching, so say
+"stop watching" before opening the preview or recording.
 
 **Notes and reminders** — notes and todos are appended to plain markdown in
 `~/Documents/Jungey`, so they outlive Jungey and can be grepped, synced or edited by hand.
