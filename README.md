@@ -58,6 +58,7 @@ switch to firefox
 find my invoice pdf
 volume up
 lock the screen
+purple, what time is it
 voice off
 clear
 exit
@@ -135,9 +136,21 @@ For a much better voice, install [Piper](https://github.com/rhasspy/piper) and d
 `.onnx` model at `~/.local/share/piper/en_GB-alan-medium.onnx`. Jungey prefers Piper
 when it finds it.
 
-**Speech input** — say "Jungey" and it listens for the next thing you say; "Jungey, what
-time is it" in one breath works too. Recognition is offline via Vosk, so audio never
-leaves the machine. The engine comes from Maven but the model does not:
+**Speech input** — say "purple" and it listens for the next thing you say; "purple, what
+time is it" in one breath works too, and it has to lead the sentence, so "I like purple
+shirts" is ignored.
+
+The wake word must be a word the recogniser already knows. A model can only emit words
+from its vocabulary, so a name it has never seen comes out as whatever sounds nearest,
+differently every time — which is why the wake word is not "Jungey". Check a replacement
+before choosing it:
+
+```bash
+grep -cx "yourword [0-9]*" ~/.local/share/vosk/model/graph/words.txt
+```
+
+Recognition is offline via Vosk, so audio never leaves the machine. The engine comes from
+Maven but the model does not:
 
 ```bash
 mkdir -p ~/.local/share/vosk
@@ -221,7 +234,8 @@ outlives the window.
 | `voice.engine` | `auto` | `auto` / `piper` / `espeak` / `none` |
 | `voice.rate` | `165` | espeak words per minute |
 | `voice.input.enabled` | `true` | set `false` to stop listening entirely |
-| `voice.input.wakeWord` | `jungey` | what rouses it |
+| `voice.input.wakeWord` | `purple` | what rouses it; must be in the model's vocabulary |
+| `voice.input.wakeVariants` | *(blank)* | comma-separated near-misses to also accept |
 | `voice.input.model` | `~/.local/share/vosk/model` | unpacked Vosk model |
 | `camera.device` | `/dev/video0` | which webcam to use |
 | `weather.location` | *(blank)* | blank = detect by IP |
@@ -233,7 +247,7 @@ outlives the window.
 ## Roadmap
 
 - [x] **v0.1** — HUD, boot sequence, command router, 7 skills
-- [x] **v0.2** — speech input (Vosk, offline) and the "Jungey" wake word
+- [x] **v0.2** — speech input (Vosk, offline) and a wake word
 - [x] **v0.3** — memory: notes, reminders, timers (markdown on disk, timers in memory)
 - [x] **v0.4** — system control (volume, lock, windows, network)
 - [ ] **v0.5** — tray icon, global hotkey, autostart

@@ -16,7 +16,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Locale;
-import java.util.Set;
+import java.util.ArrayList;
 import java.util.function.Consumer;
 
 /**
@@ -35,15 +35,17 @@ public final class Listener {
     private static final ObjectMapper MAPPER = new ObjectMapper();
 
     /**
-     * "Jungey" is not a dictionary word, so a small model rarely spells it the same way
-     * twice. These are the transcriptions it actually produces in practice.
+     * The wake word has to be a word the model knows. A recogniser can only emit things
+     * in its vocabulary, so a name it has never seen comes out as whatever sounds nearest
+     * - differently every time - and no list of guessed spellings fixes that.
      */
-    private static final Set<String> WAKE_VARIANTS = Set.of(
-            "jungey", "jungie", "jungi", "junge", "jungy", "jungle", "jung",
-            "young he", "younge", "jun gay", "john gay", "jungey's");
+    private static final String DEFAULT_WAKE = "purple";
 
     /** How long to keep listening for a command after the wake word before giving up. */
     private static final long COMMAND_WINDOW_MS = 8_000;
+
+    /** How many words may precede the wake phrase - enough for a "hey" or an "ok". */
+    private static final int LEADING_SLACK = 1;
 
     public enum State {OFF, WAITING, LISTENING}
 
@@ -183,14 +185,14 @@ public final class Listener {
                         setState(State.LISTENING);
                         commandDeadline = System.currentTimeMillis() + COMMAND_WINDOW_MS;
                     } else {
-                        // "jungey what time is it" - wake word and command in one breath.
+                        // "purple what time is it" - wake word and command in one breath.
                         onCommand.accept(rest);
                     }
                 }
             } else if (state == State.WAITING) {
                 // Partial results let the wake word register before the speaker pauses.
                 String partial = textOf(recognizer.getPartialResult(), "partial");
-                if (afterWakeWord(partial) != null && partial.split("\\s+").length <= 2) {
+                if (afterWakeWord(partial) != null && partial.split("\\s+").length <= wakeLength() + 1) {
                     recognizer.reset();
                     setState(State.LISTENING);
                     commandDeadline = System.currentTimeMillis() + COMMAND_WINDOW_MS;
@@ -199,29 +201,47 @@ public final class Listener {
         }
     }
 
+    /** The wake phrase, plus any near-misses listed in the config, each as its own words. */
+    private static List<List<String>> wakePhrases() {
+        Config cfg = Config.get();
+        List<List<String>> phrases = new ArrayList<>();
+
+        phrases.add(List.of(cfg.str("voice.input.wakeWord", DEFAULT_WAKE)
+                .toLowerCase(Locale.ENGLISH).trim().split("\\s+")));
+
+        String variants = cfg.str("voice.input.wakeVariants", "");
+        for (String variant : variants.split(",")) {
+            if (!variant.isBlank()) {
+                phrases.add(List.of(variant.toLowerCase(Locale.ENGLISH).trim().split("\\s+")));
+            }
+        }
+        return phrases;
+    }
+
+    /** Longest wake phrase, so a partial result can be judged against it. */
+    private static int wakeLength() {
+        return wakePhrases().stream().mapToInt(List::size).max().orElse(1);
+    }
+
     /**
-     * @return the words following the wake word, "" if the utterance was only the wake
-     *         word, or null if the wake word was not said at all
+     * @return the words following the wake phrase, "" if the utterance was only the wake
+     *         phrase, or null if it was not said at all
      */
     private static String afterWakeWord(String text) {
         if (text == null || text.isBlank()) return null;
 
-        String wake = Config.get().str("voice.input.wakeWord", "jungey").toLowerCase(Locale.ENGLISH);
         List<String> words = List.of(text.toLowerCase(Locale.ENGLISH).trim().split("\\s+"));
 
-        for (int i = 0; i < words.size(); i++) {
-            String word = words.get(i);
-            boolean hit = word.equals(wake) || WAKE_VARIANTS.contains(word);
+        for (List<String> phrase : wakePhrases()) {
+            // The wake word has to lead, or "I like purple shirts" would be taken as an
+            // order to do something about shirts. One word of slack allows "hey purple".
+            int limit = Math.min(LEADING_SLACK, words.size() - phrase.size());
 
-            // Some variants are two words ("young he"), so try the pair as well.
-            if (!hit && i + 1 < words.size()) {
-                if (WAKE_VARIANTS.contains(word + " " + words.get(i + 1))) {
-                    hit = true;
-                    i++;
+            for (int i = 0; i <= limit; i++) {
+                if (words.subList(i, i + phrase.size()).equals(phrase)) {
+                    return String.join(" ", words.subList(i + phrase.size(), words.size()));
                 }
             }
-
-            if (hit) return String.join(" ", words.subList(i + 1, words.size()));
         }
         return null;
     }

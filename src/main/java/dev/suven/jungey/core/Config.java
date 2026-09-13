@@ -35,7 +35,9 @@ public final class Config {
         props.setProperty("voice.engine", "auto");   // auto | piper | espeak | none
         props.setProperty("voice.rate", "165");
         props.setProperty("voice.input.enabled", "true");
-        props.setProperty("voice.input.wakeWord", "jungey");
+        // Must be a word the speech model knows; "Jungey" is not one, so it never matched.
+        props.setProperty("voice.input.wakeWord", "purple");
+        props.setProperty("voice.input.wakeVariants", "");
         props.setProperty("voice.input.model",
                 System.getProperty("user.home") + "/.local/share/vosk/model");
         props.setProperty("weather.location", "");   // blank = auto-detect by IP
