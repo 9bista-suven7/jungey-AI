@@ -11,7 +11,7 @@ the question actually needs live data.
 ## Run it
 
 ```bash
-cd ~/Documents/noname
+cd ~/Documents/jungey-AI
 mvn javafx:run
 ```
 

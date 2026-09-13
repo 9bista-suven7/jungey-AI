@@ -22,7 +22,7 @@ public final class Http {
     private static final ObjectMapper MAPPER = new ObjectMapper();
 
     /** Sent on every request; some APIs (Wikipedia) reject callers without one. */
-    private static final String USER_AGENT = "Jungey/0.1 (personal assistant; +https://github.com/9bista-suven7/noname)";
+    private static final String USER_AGENT = "Jungey/0.1 (personal assistant; +https://github.com/9bista-suven7/jungey-AI)";
 
     private Http() {
     }
