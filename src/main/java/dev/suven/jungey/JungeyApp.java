@@ -87,6 +87,11 @@ public class JungeyApp extends Application implements dev.suven.jungey.core.View
 
         stage.initStyle(StageStyle.TRANSPARENT);
         stage.setTitle("Jungey");
+        // Without these the taskbar button is blank - the .desktop icon does not reach the window.
+        for (int size : new int[]{16, 32, 48, 64, 128, 256}) {
+            var icon = getClass().getResource("/icons/jungey-" + size + ".png");
+            if (icon != null) stage.getIcons().add(new javafx.scene.image.Image(icon.toExternalForm()));
+        }
         stage.setScene(scene);
         stage.setMinWidth(620);
         stage.setMinHeight(420);
