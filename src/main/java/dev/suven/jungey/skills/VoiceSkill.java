@@ -21,6 +21,13 @@ public class VoiceSkill implements Skill {
     /** Cuts off the sentence being spoken without turning speech off for good. */
     private static final Set<String> HUSH = Set.of("stop", "stop talking", "shush", "enough", "quiet");
 
+    private static final Set<String> TEST = Set.of("voice test", "test voice", "say something");
+
+    /** Numbers, a unit and a percentage: the things a synthetic voice usually fumbles. */
+    private static final String SAMPLE =
+            "Right. It is 23 degrees outside, the disk is 64% full, and you have 3 timers running. "
+                    + "How does that sound?";
+
     private final Speaker speaker;
 
     public VoiceSkill(Speaker speaker) {
@@ -34,12 +41,12 @@ public class VoiceSkill implements Skill {
 
     @Override
     public String description() {
-        return "Turns speech output on or off.";
+        return "Turns speech output on or off, and tries it out.";
     }
 
     @Override
     public String[] examples() {
-        return new String[]{"voice off", "voice on", "voice"};
+        return new String[]{"voice off", "voice on", "voice", "voice test"};
     }
 
     @Override
@@ -50,7 +57,8 @@ public class VoiceSkill implements Skill {
     @Override
     public boolean matches(String input) {
         String s = input.trim();
-        return s.equals("voice") || ON.contains(s) || OFF.contains(s) || HUSH.contains(s);
+        return s.equals("voice") || ON.contains(s) || OFF.contains(s) || HUSH.contains(s)
+                || TEST.contains(s);
     }
 
     @Override
@@ -66,13 +74,19 @@ public class VoiceSkill implements Skill {
         if (!speaker.available()) {
             return SkillResult.error(
                     "No speech engine is installed, so there is nothing to switch. "
-                            + "Install one with: sudo apt install espeak-ng");
+                            + "Run scripts/setup-voice.sh for a natural one, or "
+                            + "sudo apt install espeak-ng for a robotic one.");
+        }
+
+        if (TEST.contains(s)) {
+            // Spoken as well as printed - the whole point is to hear how it sounds.
+            return SkillResult.of(SAMPLE);
         }
 
         if (s.equals("voice")) {
             return SkillResult.of(speaker.muted()
-                    ? "Voice is off."
-                    : "Voice is on, using " + speaker.engineName() + ".");
+                    ? "Voice is off. The engine is " + speaker.engineDetail() + "."
+                    : "Voice is on, using " + speaker.engineDetail() + ".");
         }
 
         boolean on = ON.contains(s);

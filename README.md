@@ -102,8 +102,12 @@ src/main/java/dev/suven/jungey/
 │   └── StatusBar.java    live CPU / memory / battery
 ├── net/Http.java         shared HTTP client
 └── voice/
-    ├── Speaker.java      text to speech
-    └── Listener.java     wake word and speech recognition
+    ├── Speaker.java      text to speech: piper, hugging face, espeak
+    ├── Spoken.java       rewrites replies to be worth hearing
+    ├── AudioOut.java     the one place audio leaves the app
+    ├── Listener.java     wake word and speech recognition
+    ├── Transcriber.java  whisper, when vosk is not enough
+    └── HuggingFace.java  the hosted end of both of those
 ```
 
 ## Adding a skill
@@ -129,23 +133,42 @@ network calls there are fine.
 
 Jungey works without both of these. They're upgrades, not requirements.
 
-**Voice output** — it speaks if a TTS engine is on PATH, stays silent otherwise.
+**Voice output** — it speaks if a speech engine is installed, stays silent otherwise.
 
 ```bash
-sudo apt install espeak-ng
+scripts/setup-voice.sh
 ```
 
-Speech is on once an engine is installed. Say `voice off` to mute it and `voice on` to
-bring it back; the choice is written to the config, so it survives a restart. `voice`
-on its own reports the current state.
+That installs [Piper](https://github.com/OHF-Voice/piper1-gpl), a neural voice that runs
+locally, and fetches a voice for it from Hugging Face. It is the difference between an
+assistant and a 1980s answering machine. Without it Jungey falls back to espeak-ng
+(`sudo apt install espeak-ng`), which works everywhere and sounds like a robot, and with
+neither it simply stays quiet.
 
-For a much better voice, install [Piper](https://github.com/rhasspy/piper) and drop a
-`.onnx` model at `~/.local/share/piper/en_GB-alan-medium.onnx`. Jungey prefers Piper
-when it finds it.
+Say `voice test` to hear the current engine, `voice off` to mute it, `voice on` to bring it
+back; the choice is written to the config, so it survives a restart. `voice` on its own
+reports which engine is in use. A hosted Hugging Face voice is available too — see
+[docs/VOICE.md](docs/VOICE.md).
 
 **Speech input** — say "purple" and it listens for the next thing you say; "purple, what
 time is it" in one breath works too, and it has to lead the sentence, so "I like purple
 shirts" is ignored.
+
+```bash
+scripts/setup-ears.sh
+```
+
+Two recognisers share the work. Waking runs against a grammar holding only the wake phrase,
+which is a much easier question than transcription and is therefore much harder to get
+wrong — but only Vosk's small models accept a grammar at all, so the script above installs a
+40 MB one whose entire job is hearing the name. The large model keeps transcribing the
+command that follows. On the same clip of "purple, what time is it", the small model with a
+grammar hears `purple`; the large model with its whole dictionary open hears `apple`, and
+never wakes.
+
+The command itself can also go to Whisper, which hears markedly better in a real room.
+Either way Vosk decides where the sentence begins and ends, and if Whisper is unavailable
+its answer is used. [docs/VOICE.md](docs/VOICE.md) covers both.
 
 The wake word must be a word the recogniser already knows. A model can only emit words
 from its vocabulary, so a name it has never seen comes out as whatever sounds nearest,
@@ -156,8 +179,8 @@ before choosing it:
 grep -cx "yourword [0-9]*" ~/.local/share/vosk/model/graph/words.txt
 ```
 
-Recognition is offline via Vosk, so audio never leaves the machine. The engine comes from
-Maven but the model does not:
+Recognition is offline via Vosk, and stays that way unless you explicitly turn on a hosted
+transcriber. The engine comes from Maven but the model does not:
 
 ```bash
 mkdir -p ~/.local/share/vosk
@@ -168,10 +191,11 @@ mv ~/.local/share/vosk/vosk-model-en-us-0.22 ~/.local/share/vosk/model
 
 That one is 1.8 GB and wants a few GB of RAM. On a laptop CPU, move its `rescore` and `rnnlm`
 folders out of the model directory: they are optional rescoring passes that keep a whole core
-busy, fall behind live speech and drop audio - which is exactly when a wake word goes unheard. `vosk-model-small-en-us-0.15` is 40 MB and
-plenty for commands if you would rather not spend the disk. The status bar shows `MIC WAKE`
-while waiting for the wake word and `MIC LIVE` while a command is being taken. With no
-model installed Jungey says so once at boot and stays keyboard-only.
+busy, fall behind live speech and drop audio - which is exactly when a wake word goes unheard.
+`vosk-model-small-en-us-0.15` is 40 MB and plenty for waking if you would rather not spend the
+disk. The status bar shows `MIC WAKE` while waiting for the wake word and `MIC LIVE` while a
+command is being taken. With no model installed Jungey says so once at boot and stays
+keyboard-only.
 
 **Camera and screen** — "open camera", "take a photo", "record video", "stop recording"
 and "screenshot". Stills and screenshots land in `~/Pictures/Jungey`, video in
@@ -257,12 +281,21 @@ models but does not train them.
 | `user.name` | your login name | what Jungey calls you |
 | `user.honorific` | `sir` | used for flourish |
 | `voice.enabled` | `true` | what `voice on` / `voice off` writes |
-| `voice.engine` | `auto` | `auto` / `piper` / `espeak` / `none` |
+| `voice.engine` | `auto` | `auto` / `piper` / `hf` / `espeak` / `none`; `auto` never leaves the machine |
 | `voice.rate` | `165` | espeak words per minute |
+| `voice.maxChars` | `400` | longer replies are cut short aloud, in full on screen |
+| `voice.piper.model` | `~/.local/share/piper/en_GB-alan-medium.onnx` | the voice to speak with |
+| `voice.piper.speed` | `1.0` | above 1 is slower, below is quicker |
+| `voice.hf.ttsModel` | `facebook/mms-tts-eng` | used when `voice.engine=hf` |
 | `voice.input.enabled` | `true` | set `false` to stop listening entirely |
+| `voice.input.engine` | `auto` | `auto` / `vosk` / `whispercpp` / `hf`; `auto` never leaves the machine |
+| `voice.input.hf.model` | `openai/whisper-large-v3` | used when `voice.input.engine=hf` |
 | `voice.input.wakeWord` | `purple` | what rouses it; must be in the model's vocabulary |
 | `voice.input.wakeVariants` | *(blank)* | comma-separated near-misses to also accept |
-| `voice.input.model` | `~/.local/share/vosk/model` | unpacked Vosk model |
+| `voice.input.wakeFuzzy` | `true` | also accept the wake word one letter wrong |
+| `voice.input.model` | `~/.local/share/vosk/model` | unpacked Vosk model, used for commands |
+| `voice.input.wakeModel` | `~/.local/share/vosk/wake-model` | small model used only for waking |
+| `hf.token` | *(blank)* | falls back to `HF_TOKEN`, then the `hf auth login` token |
 | `camera.device` | `/dev/video0` | which webcam to use |
 | `weather.location` | *(blank)* | blank = detect by IP |
 | `llm.model` | `llama3.2:3b` | any model you've pulled |
