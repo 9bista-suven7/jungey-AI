@@ -72,7 +72,10 @@ public final class Config {
         props.setProperty("llm.model", "llama3.2:3b");
         props.setProperty("llm.visionModel", "moondream");
         props.setProperty("llm.url", "http://localhost:11434");
-        props.setProperty("llm.keepAlive", "60m");   // how long Ollama holds a model in memory
+        // How long Ollama holds a model in memory. Reloading it from a hard drive takes most
+        // of a minute, and a 3B model needs about 2.5 GB, so it simply stays loaded.
+        props.setProperty("llm.keepAlive", "24h");
+        props.setProperty("llm.visionKeepAlive", "60m");
         props.setProperty("ui.alwaysOnTop", "false");
 
         if (Files.exists(FILE)) {
@@ -81,9 +84,30 @@ public final class Config {
             } catch (IOException e) {
                 System.err.println("[jungey] could not read config: " + e.getMessage());
             }
+            if (upgradeDefaults()) save();
         } else {
             save();
         }
+    }
+
+    /**
+     * The file holds every default as it was when it was first written, so a default that
+     * later changes would never reach anyone who had already run Jungey. A value still equal
+     * to an old default was never chosen by hand, and moves on to the new one.
+     */
+    private boolean upgradeDefaults() {
+        boolean changed = false;
+        String[][] retired = {
+                // key, old default, new default
+                {"llm.keepAlive", "60m", "24h"},
+        };
+        for (String[] r : retired) {
+            if (r[1].equals(props.getProperty(r[0]))) {
+                props.setProperty(r[0], r[2]);
+                changed = true;
+            }
+        }
+        return changed;
     }
 
     public void save() {

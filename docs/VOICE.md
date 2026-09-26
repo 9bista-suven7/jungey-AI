@@ -22,6 +22,14 @@ Piper is a neural text-to-speech model that runs on your CPU. It is free, it nee
 account, it works on a train, and it starts speaking in about a fifth of a second. It is
 the right answer for a desktop assistant, and everything else on this page is a fallback.
 
+Jungey starts one Piper when it starts and keeps it for the whole session. Loading the
+voice costs more than speaking a sentence does - on a test machine a fresh Piper took
+0.45 s over a line that a running one said in 0.15 s - and a model's reply arrives a
+sentence at a time, so paying for the load before every sentence added up. The running
+Piper also works ahead: while one sentence plays, the next is being synthesised, so a long
+answer has no gaps but the pause the voice is set to. (That needs Piper's C++ build, the
+one `setup-voice.sh` installs and Jungey OS ships; the Python build is started per line.)
+
 Voices come from [rhasspy/piper-voices](https://huggingface.co/rhasspy/piper-voices).
 `scripts/setup-voice.sh --list` shows the handful worth starting with; `--voice NAME`
 installs a different one.
@@ -119,22 +127,29 @@ heard is used instead. Nothing silently stops working.
 |---|---|
 | `auto` | whisper.cpp if it is installed, Vosk alone otherwise — never leaves the machine |
 | `vosk` | Vosk alone |
-| `whispercpp` | local [whisper.cpp](https://github.com/ggml-org/whisper.cpp); needs `whisper-cli` on PATH and a model at `voice.input.whisperModel` |
+| `whispercpp` | local [whisper.cpp](https://github.com/ggml-org/whisper.cpp); needs `whisper-server` or `whisper-cli` on PATH and a model at `voice.input.whisperModel` |
 | `hf` | hosted Whisper through Hugging Face; needs a token, and **sends your command audio to their servers** |
 
-Local, if you have a compiler and ten minutes:
+Local, if you have a compiler and a few minutes:
 
 ```bash
-git clone https://github.com/ggml-org/whisper.cpp && cd whisper.cpp
-cmake -B build && cmake --build build -j --config Release
-sudo install build/bin/whisper-cli /usr/local/bin/
-mkdir -p ~/.local/share/whisper
-sh ./models/download-ggml-model.sh base.en
-cp models/ggml-base.en.bin ~/.local/share/whisper/
+sudo apt install git cmake build-essential      # once
+scripts/setup-ears.sh --whisper
 ```
 
-Then `voice.input.engine=whispercpp`. `base.en` is a good trade; `small.en` is better and
-about three times slower.
+That builds whisper.cpp into `~/.local/share/jungey/whisper.cpp`, links `whisper-server`
+and `whisper-cli` into `~/.local/bin`, and downloads the `base.en` model to
+`~/.local/share/whisper`. `auto` picks it up at the next start.
+
+Jungey runs `whisper-server` itself, on the loopback interface, and loads the model into it
+once, when the ears open; `whisper-cli` would load it again for every command. The server
+holds about 300 MB of memory while Jungey runs. The console's
+"Listening for" line ends with `vosk + whisper.cpp (server)` when that is what you have; a
+command said before the model has finished loading goes to `whisper-cli` instead. The server
+stops when Jungey does, even if Jungey is killed.
+
+`base.en` is a good trade; `small.en` is better and about three times slower. Point
+`voice.input.whisperModel` at a different `ggml-*.bin` to switch.
 
 Hosted, if you would rather not:
 

@@ -175,7 +175,9 @@ public class VisionSkill implements Skill {
         ObjectNode body = MAPPER.createObjectNode();
         body.put("model", model);
         body.put("stream", false);
-        body.put("keep_alive", LlmSkill.keepAlive());
+        // Not the chat model's all-day hold: vision is asked for now and then, and ~2 GB
+        // held for a question an hour ago is memory the rest of the machine could use.
+        body.put("keep_alive", cfg.str("llm.visionKeepAlive", "60m"));
 
         ObjectNode message = body.putArray("messages").addObject();
         message.put("role", "user");

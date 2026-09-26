@@ -166,6 +166,7 @@ public final class Listener {
         if (running || !available()) return;
 
         running = true;
+        transcriber.warmUp();
         thread = new Thread(this::loop, "jungey-ears");
         thread.setDaemon(true);
         thread.start();

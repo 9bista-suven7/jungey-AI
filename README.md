@@ -21,12 +21,15 @@ yourself.
 
 ```bash
 cd ~/Documents/jungey-AI
-mvn javafx:run
+./run.sh
 ```
 
-First run downloads JavaFX and Jackson (~40 MB) and takes a minute. After that it starts in a couple of seconds.
+The first run downloads JavaFX and Jackson (~40 MB) and builds a jar, which takes a minute.
+After that `run.sh` starts the jar straight away, and only rebuilds it when the code has
+changed, so a start takes well under a second. `mvn javafx:run` works too, but spends a few
+seconds checking the build every time.
 
-To build a standalone jar instead:
+To build the standalone jar yourself:
 
 ```bash
 mvn package
@@ -112,10 +115,12 @@ src/main/java/dev/suven/jungey/
 ├── net/Http.java         shared HTTP client
 └── voice/
     ├── Speaker.java      text to speech: piper, hugging face, espeak
+    ├── PiperDaemon.java  one piper kept running, so no sentence waits for a model load
     ├── Spoken.java       rewrites replies to be worth hearing
     ├── AudioOut.java     the one place audio leaves the app
     ├── Listener.java     wake word and speech recognition
     ├── Transcriber.java  whisper, when vosk is not enough
+    ├── WhisperServer.java whisper.cpp kept running with its model loaded
     └── HuggingFace.java  the hosted end of both of those
 ```
 
@@ -176,8 +181,11 @@ grammar hears `purple`; the large model with its whole dictionary open hears `ap
 never wakes.
 
 The command itself can also go to Whisper, which hears markedly better in a real room.
-Either way Vosk decides where the sentence begins and ends, and if Whisper is unavailable
-its answer is used. [docs/VOICE.md](docs/VOICE.md) covers both.
+`scripts/setup-ears.sh --whisper` builds [whisper.cpp](https://github.com/ggml-org/whisper.cpp)
+and fetches its model; Jungey then keeps its server running with the model loaded, so a
+command waits for the transcribing and not for a model load. Either way Vosk decides where
+the sentence begins and ends, and if Whisper is unavailable its answer is used.
+[docs/VOICE.md](docs/VOICE.md) covers both.
 
 The wake word must be a word the recogniser already knows. A model can only emit words
 from its vocabulary, so a name it has never seen comes out as whatever sounds nearest,
@@ -299,6 +307,7 @@ models but does not train them.
 | `voice.input.enabled` | `true` | set `false` to stop listening entirely |
 | `voice.input.engine` | `auto` | `auto` / `vosk` / `whispercpp` / `hf`; `auto` never leaves the machine |
 | `voice.input.hf.model` | `openai/whisper-large-v3` | used when `voice.input.engine=hf` |
+| `voice.input.whisperModel` | `~/.local/share/whisper/ggml-base.en.bin` | the whisper.cpp model |
 | `voice.input.wakeWord` | `purple` | what rouses it; must be in the model's vocabulary |
 | `voice.input.wakeVariants` | *(blank)* | comma-separated near-misses to also accept |
 | `voice.input.wakeFuzzy` | `true` | also accept the wake word one letter wrong |
@@ -310,7 +319,8 @@ models but does not train them.
 | `llm.model` | `llama3.2:3b` | any model you've pulled |
 | `llm.visionModel` | `moondream` | used for screen and camera questions |
 | `llm.url` | `http://localhost:11434` | Ollama endpoint |
-| `llm.keepAlive` | `60m` | how long Ollama keeps a model loaded; reloading from disk is the slow part |
+| `llm.keepAlive` | `24h` | how long Ollama keeps the chat model loaded; reloading from disk is the slow part |
+| `llm.visionKeepAlive` | `60m` | the same for the vision model, which is asked for less often |
 | `ui.alwaysOnTop` | `false` | pin above other windows |
 
 ## Roadmap
