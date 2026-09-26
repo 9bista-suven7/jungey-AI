@@ -1,8 +1,24 @@
 #!/bin/sh
-# Live session only: put "Install Jungey OS" on the desktop, already trusted,
-# so it starts with one double-click instead of an "untrusted launcher" prompt.
+# Live session only: get the live user's desktop ready.
 grep -qw 'boot=casper' /proc/cmdline || exit 0
 
+# Signing in to Claude or joining Wi-Fi saves a secret in the keyring. The live
+# user logs in without a password, so there is no login keyring to unlock, and
+# each of those would first ask the user to invent a keyring password. An empty,
+# already-unlocked login keyring answers them instead. Installed systems never
+# run this: their keyring is protected by the user's login password.
+keyrings=${XDG_DATA_HOME:-$HOME/.local/share}/keyrings
+if [ ! -e "$keyrings/login.keyring" ]; then
+    mkdir -p "$keyrings"
+    chmod 700 "$keyrings"
+    printf '[keyring]\ndisplay-name=Login\nctime=0\nmtime=0\nlock-on-idle=false\nlock-after=false\n' \
+        > "$keyrings/login.keyring"
+    echo login > "$keyrings/default"
+    chmod 600 "$keyrings/login.keyring" "$keyrings/default"
+fi
+
+# Put "Install Jungey OS" and Jungey on the desktop, already trusted, so they
+# start with one double-click instead of an "untrusted launcher" prompt.
 desktop=$(xdg-user-dir DESKTOP 2>/dev/null || echo "$HOME/Desktop")
 mkdir -p "$desktop"
 for app in jungey-install jungey; do
