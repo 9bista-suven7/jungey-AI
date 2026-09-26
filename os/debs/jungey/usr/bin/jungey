@@ -1,0 +1,5 @@
+#!/bin/sh
+# Start the Jungey assistant on the system's Java 21 runtime.
+JAVA=/usr/lib/jvm/java-21-openjdk-amd64/bin/java
+[ -x "$JAVA" ] || JAVA=java
+exec "$JAVA" -jar /usr/share/jungey/jungey.jar "$@"

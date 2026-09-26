@@ -1,0 +1,4 @@
+#!/bin/sh
+# Start the Jungey OS installer. It needs root; the live user has passwordless
+# sudo, and -E keeps the desktop's display settings.
+exec sudo -E /usr/bin/calamares -D6 "$@"

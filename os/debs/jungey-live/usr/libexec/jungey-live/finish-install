@@ -1,0 +1,34 @@
+#!/bin/sh
+# Last installer step, run from the live system with the installed system
+# mounted at $1.
+set -u
+ROOT=${1:?usage: finish-install ROOT}
+
+# Keep the installer's log with the installed system.
+mkdir -p "$ROOT/var/log/installer"
+for log in /root/.cache/calamares/session.log /home/*/.cache/calamares/session.log; do
+    [ -f "$log" ] && cp "$log" "$ROOT/var/log/installer/calamares.log"
+done
+
+# On BIOS machines GRUB lives in the disk's boot sector. Tell grub-pc which
+# disk that is, or its updates would refresh /boot/grub but leave the old boot
+# sector behind, and the two stop matching.
+if [ ! -d /sys/firmware/efi ]; then
+    root_dev=$(findmnt -no SOURCE "$ROOT")
+    disk=$(lsblk -snlo NAME,TYPE "$root_dev" | awk '$2 == "disk" { print $1; exit }')
+    if [ -n "$disk" ]; then
+        device=/dev/$disk
+        for link in /dev/disk/by-id/*; do
+            case $link in *-part*|*/wwn-*) continue ;; esac
+            if [ "$(readlink -f "$link")" = "/dev/$disk" ]; then
+                device=$link
+                break
+            fi
+        done
+        chroot "$ROOT" debconf-set-selections <<SEL
+grub-pc grub-pc/install_devices multiselect $device
+grub-pc grub-pc/install_devices_empty boolean false
+SEL
+    fi
+fi
+exit 0

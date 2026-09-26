@@ -1,0 +1,7 @@
+[Desktop Entry]
+Type=Application
+Name=Jungey OS
+Comment=The Jungey OS desktop (Xfce)
+Exec=jungey-session
+TryExec=startxfce4
+DesktopNames=XFCE

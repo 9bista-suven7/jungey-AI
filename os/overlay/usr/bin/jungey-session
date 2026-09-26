@@ -1,0 +1,8 @@
+#!/bin/sh
+# The Jungey OS desktop: Xfce, reading Jungey OS's defaults ahead of Xfce's own.
+# Per-user settings in ~/.config still win over both.
+case ":${XDG_CONFIG_DIRS:-}:" in
+    *:/etc/xdg/xdg-jungey:*) ;;
+    *) export XDG_CONFIG_DIRS="/etc/xdg/xdg-jungey:${XDG_CONFIG_DIRS:-/etc/xdg}" ;;
+esac
+exec startxfce4 "$@"
