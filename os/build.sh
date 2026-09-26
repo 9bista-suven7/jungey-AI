@@ -256,8 +256,9 @@ build_live_deb() {
     sed -i -e "s/@OS_NAME@/$OS_NAME/g" -e "s/@OS_VERSION@/$OS_VERSION/g" \
         -e "s/@SUITE@/$SUITE/g" -e "s/@SUITE_VERSION@/$SUITE_VERSION/g" \
         "$branding/branding.desc" "$stage/usr/share/applications/jungey-install.desktop"
-    install -m644 "$REPO_DIR/src/main/resources/icons/jungey-256.png" "$branding/logo.png"
-    install -m644 "$REPO_DIR/src/main/resources/icons/jungey-48.png" "$branding/icon.png"
+    # The arc reactor is the OS's mark; Jungey the assistant has its own icon.
+    rsvg-convert -w 256 -h 256 "$OS_DIR/artwork/reactor.svg" -o "$branding/logo.png"
+    rsvg-convert -w 48 -h 48 "$OS_DIR/artwork/reactor.svg" -o "$branding/icon.png"
     rsvg-convert -w 320 -h 320 "$OS_DIR/artwork/reactor.svg" -o "$branding/welcome.png"
 
     # The installer strips the live-only packages from the installed system.
@@ -295,8 +296,11 @@ customize() {
     install -Dm644 "$OS_DIR/artwork/wallpaper.svg" "$ROOTFS/usr/share/backgrounds/jungey/jungey-default.svg"
     rsvg-convert -w 2560 -h 1440 "$OS_DIR/artwork/wallpaper.svg" \
         -o "$ROOTFS/usr/share/backgrounds/jungey/jungey-default.png"
-    install -Dm644 "$REPO_DIR/src/main/resources/icons/jungey-256.png" \
-        "$ROOTFS/usr/share/pixmaps/jungey-os.png"
+    # "jungey-os": the menu button, installer and os-release logo.
+    install -Dm644 "$OS_DIR/artwork/reactor.svg" \
+        "$ROOTFS/usr/share/icons/hicolor/scalable/apps/jungey-os.svg"
+    mkdir -p "$ROOTFS/usr/share/pixmaps"
+    rsvg-convert -w 256 -h 256 "$OS_DIR/artwork/reactor.svg" -o "$ROOTFS/usr/share/pixmaps/jungey-os.png"
     mkdir -p "$ROOTFS/usr/share/jungey-os"
     rsvg-convert -w 88 -h 88 "$OS_DIR/artwork/reactor.svg" \
         -o "$ROOTFS/usr/share/jungey-os/boot-watermark.png"

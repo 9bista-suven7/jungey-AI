@@ -42,7 +42,7 @@
   </property>
   <property name="plugins" type="empty">
     <property name="plugin-1" type="string" value="whiskermenu">
-      <property name="button-icon" type="string" value="jungey"/>
+      <property name="button-icon" type="string" value="jungey-os"/>
       <property name="button-title" type="string" value="Jungey"/>
       <property name="show-button-title" type="bool" value="false"/>
       <property name="favorites" type="array">

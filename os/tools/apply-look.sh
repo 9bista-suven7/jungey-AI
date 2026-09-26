@@ -28,6 +28,18 @@ rsync -rlK --chown=root:root --chmod=D755 "$OS_DIR/overlay/" /
 chmod 600 /etc/netplan/*.yaml
 install -Dm644 "$OS_DIR/artwork/wallpaper.svg" /usr/share/backgrounds/jungey/jungey-default.svg
 rsvg-convert -w 2560 -h 1440 "$OS_DIR/artwork/wallpaper.svg" -o /usr/share/backgrounds/jungey/jungey-default.png
+# Icons: the reactor for the OS (menu button), the J-and-spark for Jungey itself.
+# /usr/local/share comes first in the icon search path, so these win over the
+# older icons the installed jungey package carries.
+install -Dm644 "$OS_DIR/artwork/reactor.svg" /usr/share/icons/hicolor/scalable/apps/jungey-os.svg
+rsvg-convert -w 256 -h 256 "$OS_DIR/artwork/reactor.svg" -o /usr/share/pixmaps/jungey-os.png
+for size in 16 32 48 128 256; do
+    install -Dm644 "$OS_DIR/../src/main/resources/icons/jungey-$size.png" \
+        "/usr/local/share/icons/hicolor/${size}x${size}/apps/jungey.png"
+done
+gtk-update-icon-cache -q -f /usr/share/icons/hicolor || true
+gtk-update-icon-cache -q -f /usr/local/share/icons/hicolor || true
+
 # The desktop and Claude hooks only touch system defaults, so they are safe to
 # rerun on an installed system (the others set up identity and the live image).
 for hook in 20-desktop.sh 25-claude.sh; do

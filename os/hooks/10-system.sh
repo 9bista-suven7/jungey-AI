@@ -25,7 +25,7 @@ HOME_URL="https://github.com/9bista-suven7/jungey-AI"
 SUPPORT_URL="https://github.com/9bista-suven7/jungey-AI/issues"
 BUG_REPORT_URL="https://github.com/9bista-suven7/jungey-AI/issues"
 UBUNTU_CODENAME=$SUITE
-LOGO=jungey
+LOGO=jungey-os
 EOF
 
 echo "$HOSTNAME_LIVE" > /etc/hostname
