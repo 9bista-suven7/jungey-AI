@@ -8,6 +8,15 @@ the question actually needs live data.
 
 ---
 
+## Jungey OS
+
+A whole computer built around Jungey: a lightweight Linux desktop (Ubuntu 24.04 LTS
+with Xfce) that boots from a USB stick and installs with a graphical installer, Jungey
+included. Download the ISO from the
+[latest build](https://github.com/9bista-suven7/jungey-AI/releases/tag/jungey-os-latest);
+[os/README.md](os/README.md) covers making the USB stick, installing, and building it
+yourself.
+
 ## Run it
 
 ```bash

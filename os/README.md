@@ -12,6 +12,7 @@ disk, and a graphical installer puts it on the machine for good.
 | Installer | Calamares: erase disk, install alongside Windows, or manual partitioning, optional disk encryption |
 | Boots on | BIOS and UEFI, with Secure Boot on or off |
 | Needs | 64-bit x86 PC, 2 GB RAM (1 GB works, slowly), 12 GB disk, a 4 GB+ USB stick |
+| Footprint | about 600 MB of RAM at the desktop and 3.5 GB of disk after installing |
 
 ## 1. Get the ISO
 
