@@ -329,7 +329,8 @@ VOICE_URL=https://huggingface.co/rhasspy/piper-voices/resolve/v1.0.0/en/en_GB/al
 VOSK_URL=https://alphacephei.com/vosk/models/vosk-model-small-en-us-0.15.zip
 
 fetch() {
-    local url=$1 dest=$WORK/cache/$(basename "$url")
+    local url=$1 dest
+    dest=$WORK/cache/$(basename "$url")
     mkdir -p "$WORK/cache"
     if [ ! -s "$dest" ]; then
         curl -fsSL --retry 3 -o "$dest.part" "$url" && mv -f "$dest.part" "$dest" ||
