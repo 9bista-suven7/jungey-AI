@@ -103,6 +103,8 @@ thunar-volman
 thunar-archive-plugin
 tumbler
 policykit-1-gnome
+gnome-keyring
+libpam-gnome-keyring
 greybird-gtk-theme
 elementary-xfce-icon-theme
 dmz-cursor-theme

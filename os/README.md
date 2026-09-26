@@ -1,6 +1,7 @@
 # Jungey OS
 
-A lightweight Linux desktop for 64-bit PCs, with the Jungey assistant built in.
+A lightweight Linux desktop for 64-bit PCs, with the Jungey assistant and Claude
+built in.
 It boots from a USB stick into a live desktop you can try without touching your
 disk, and a graphical installer puts it on the machine for good.
 
@@ -8,6 +9,7 @@ disk, and a graphical installer puts it on the machine for good.
 |---|---|
 | Base | Ubuntu 24.04 LTS (security updates until 2029), hardware-enablement kernel |
 | Desktop | Xfce 4.18 with LightDM, dark Greybird theme |
+| Claude | Claude Desktop (Chat, Cowork, Claude Code; Anthropic's Linux beta) and the `claude` command-line tool, from Anthropic's apt repositories |
 | Apps | Jungey, GNOME Web browser, Thunar files, Mousepad, Ristretto images, Atril PDF, Parole media, Synaptic package manager |
 | Installer | Calamares: erase disk, install alongside Windows, or manual partitioning, optional disk encryption |
 | Boots on | BIOS and UEFI, with Secure Boot on or off |
@@ -81,6 +83,12 @@ restart.
 - **Firefox:** on Ubuntu it comes as a snap: `sudo apt install firefox` sets up
   snapd and installs it.
 - **NVIDIA graphics:** `sudo apt install ubuntu-drivers-common && sudo ubuntu-drivers install`, then restart.
+- **Claude:** the Claude icon in the panel opens Claude Desktop; sign in with your
+  Claude account. In a terminal, `claude` starts Claude Code, which needs a Pro,
+  Max, Team, Enterprise or Console account. Cowork runs its tasks in a virtual
+  machine, so it needs virtualization (VT-x / AMD-V) turned on in the firmware
+  settings; everything else it needs is already installed. Claude updates with
+  the rest of the system: `sudo apt update && sudo apt upgrade`.
 - **Jungey:** Super+J or the arc-reactor icon in the panel. Voice input, the
   local language model and the vision model are optional downloads — see the
   [main README](../README.md#optional-extras).
@@ -115,7 +123,9 @@ sudo ./os/build.sh
 ```
 
 The ISO lands in `os/out/`. It needs about 12 GB free in `os/work/` and takes
-20–40 minutes, most of it compressing the filesystem. Later runs reuse the
+20–40 minutes, most of it compressing the filesystem. Claude comes from
+`downloads.claude.ai`; on a network that cannot reach it, `WITH_CLAUDE=0` builds
+without Claude. Later runs reuse the
 downloaded system; `CLEAN=1` starts over. `SQUASHFS_COMP=zstd` builds faster at
 the cost of a bigger ISO.
 
@@ -126,7 +136,7 @@ the cost of a bigger ISO.
 | `config/packages.list` | everything the installed system has |
 | `config/packages-live.list` | live-session-only packages the installer removes |
 | `overlay/` | files copied as-is into the system: desktop session, panel, themes, LightDM, netplan, zram |
-| `hooks/` | scripts run inside the new system: locale, branding, Xfce defaults, initramfs, cleanup |
+| `hooks/` | scripts run inside the new system: locale, branding, Xfce defaults, Claude's panel launcher, boot splash, initramfs, cleanup |
 | `debs/jungey/` | the Jungey assistant as a `.deb` (the jar is added at build time) |
 | `debs/jungey-live/` | installer settings, branding and the live desktop's install launcher |
 | `iso/grub.cfg` | the USB stick's boot menu |

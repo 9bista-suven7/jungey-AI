@@ -53,6 +53,11 @@ jobs:
           jar=$(ls target/jungey-*.jar | grep -v original- | head -1)
           sudo JUNGEY_JAR="$PWD/$jar" ./os/build.sh
           ls -lh os/out
+          iso=$(ls os/out/*.iso)
+          if [ "$(stat -c %s "$iso")" -ge 2147483648 ]; then
+            echo "::error::$(basename "$iso") is over GitHub's 2 GiB release-asset limit"
+            exit 1
+          fi
 
       - name: Keep the ISO with this run
         uses: actions/upload-artifact@v4

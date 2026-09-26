@@ -1,6 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!-- Jungey OS panel: one bar along the bottom. Menu and Jungey on the left,
-     open windows in the middle, status and clock on the right. -->
+<!-- Jungey OS panel: one bar along the bottom. Menu, Jungey and Claude on the
+     left, open windows in the middle, status and clock on the right.
+     Lines marked "claude" are fixed up by hooks/25-claude.sh: pointed at Claude's
+     menu entry, or dropped when the image is built without Claude. -->
 <channel name="xfce4-panel" version="1.0">
   <property name="configver" type="int" value="2"/>
   <property name="panels" type="array">
@@ -15,6 +17,7 @@
       <property name="plugin-ids" type="array">
         <value type="int" value="1"/>
         <value type="int" value="2"/>
+        <value type="int" value="14"/><!-- claude -->
         <value type="int" value="3"/>
         <value type="int" value="4"/>
         <value type="int" value="5"/>
@@ -36,6 +39,7 @@
       <property name="show-button-title" type="bool" value="false"/>
       <property name="favorites" type="array">
         <value type="string" value="jungey.desktop"/>
+        <value type="string" value="@CLAUDE_DESKTOP@"/><!-- claude -->
         <value type="string" value="org.gnome.Epiphany.desktop"/>
         <value type="string" value="thunar.desktop"/>
         <value type="string" value="xfce4-terminal.desktop"/>
@@ -49,6 +53,11 @@
         <value type="string" value="jungey.desktop"/>
       </property>
     </property>
+    <property name="plugin-14" type="string" value="launcher"><!-- claude -->
+      <property name="items" type="array"><!-- claude -->
+        <value type="string" value="@CLAUDE_DESKTOP@"/><!-- claude -->
+      </property><!-- claude -->
+    </property><!-- claude -->
     <property name="plugin-3" type="string" value="launcher">
       <property name="items" type="array">
         <value type="string" value="org.gnome.Epiphany.desktop"/>

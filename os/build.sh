@@ -17,6 +17,8 @@
 #   OUT=dir         where the ISO lands (default os/out)
 #   CLEAN=1         start from nothing instead of reusing the bootstrapped system
 #   JUNGEY_JAR=f    use this jar instead of running Maven
+#   WITH_CLAUDE=0   leave out Claude Desktop and Claude Code, for builds that
+#                   cannot reach downloads.claude.ai
 set -euo pipefail
 
 OS_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
@@ -51,8 +53,13 @@ check_host() {
     for tool in debootstrap mksquashfs xorriso mcopy mkfs.vfat rsvg-convert rsync; do
         command -v "$tool" >/dev/null || missing+=("$tool")
     done
+    if [ "$WITH_CLAUDE" = 1 ]; then
+        for tool in curl gpg; do
+            command -v "$tool" >/dev/null || missing+=("$tool")
+        done
+    fi
     [ ${#missing[@]} -eq 0 ] || die "missing host tools: ${missing[*]}
-  sudo apt-get install debootstrap squashfs-tools xorriso mtools dosfstools librsvg2-bin rsync"
+  sudo apt-get install debootstrap squashfs-tools xorriso mtools dosfstools librsvg2-bin rsync curl gnupg"
 }
 
 # --- chroot plumbing ---------------------------------------------------------
@@ -145,7 +152,7 @@ EOF
 install_packages() {
     mount_chroot
     local list_sum
-    list_sum=$(sha256sum "$OS_DIR/config/packages.list" | cut -d' ' -f1)
+    list_sum=$( (cat "$OS_DIR/config/packages.list"; echo "claude=$WITH_CLAUDE") | sha256sum | cut -d' ' -f1)
     if [ "$(cat "$WORK/.packaged" 2>/dev/null)" = "$list_sum" ]; then
         log "Reusing installed packages (CLEAN=1 to rebuild)"
         return
@@ -163,7 +170,47 @@ EOF
         -o Dpkg::Options::=--force-confdef -o Dpkg::Options::=--force-confold full-upgrade
     # shellcheck disable=SC2046
     apt_install $(read_list "$OS_DIR/config/packages.list")
+    install_claude
     echo "$list_sum" > "$WORK/.packaged"
+}
+
+# Anthropic signs its Claude Desktop and Claude Code apt repositories with this
+# key; the fingerprint is the one its install guides tell users to check.
+ANTHROPIC_KEY_FPR=31DDDE24DDFAB679F42D7BD2BAA929FF1A7ECACE
+
+# Download one of Anthropic's signing keys into the new system, refusing any
+# key but the expected one.
+fetch_anthropic_key() {
+    local url=$1 dest=$ROOTFS$2 tmp fpr
+    tmp=$(mktemp)
+    curl -fsSL "$url" -o "$tmp" ||
+        die "cannot download $url; if downloads.claude.ai is out of reach, build with WITH_CLAUDE=0"
+    fpr=$(gpg --show-keys --with-colons "$tmp" | awk -F: '/^fpr/ { print $10; exit }')
+    [ "$fpr" = "$ANTHROPIC_KEY_FPR" ] || die "$url has fingerprint '$fpr', expected $ANTHROPIC_KEY_FPR"
+    install -Dm644 "$tmp" "$dest"
+    rm -f "$tmp"
+}
+
+# Claude Desktop (Chat, Cowork and Code) and the Claude Code CLI, from
+# Anthropic's own repositories, so they update with the rest of the system.
+install_claude() {
+    if [ "$WITH_CLAUDE" != 1 ]; then
+        log "Leaving out Claude (WITH_CLAUDE=$WITH_CLAUDE)"
+        return
+    fi
+    log "Adding Claude Desktop and Claude Code from Anthropic's apt repositories"
+    fetch_anthropic_key https://downloads.claude.ai/claude-desktop/key.asc \
+        /usr/share/keyrings/claude-desktop-archive-keyring.asc
+    fetch_anthropic_key https://downloads.claude.ai/keys/claude-code.asc \
+        /etc/apt/keyrings/claude-code.asc
+    echo "deb [arch=amd64,arm64 signed-by=/usr/share/keyrings/claude-desktop-archive-keyring.asc] https://downloads.claude.ai/claude-desktop/apt/stable stable main" \
+        > "$ROOTFS/etc/apt/sources.list.d/claude-desktop.list"
+    echo "deb [signed-by=/etc/apt/keyrings/claude-code.asc] https://downloads.claude.ai/claude-code/apt/stable stable main" \
+        > "$ROOTFS/etc/apt/sources.list.d/claude-code.list"
+    in_chroot apt-get update
+    # Cowork runs its tasks in a QEMU virtual machine; these are the packages
+    # the desktop app would otherwise ask for before Cowork works.
+    apt_install claude-desktop claude-code qemu-system-x86 ovmf virtiofsd
 }
 
 build_jungey_deb() {

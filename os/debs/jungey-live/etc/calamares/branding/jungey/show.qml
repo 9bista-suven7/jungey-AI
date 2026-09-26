@@ -66,6 +66,20 @@ Presentation
             wrapMode: Text.WordWrap
             color: "#d8f3ff"
             font.pixelSize: 18
+            text: "<b>Claude is built in.</b><br/><br/>Open Claude from the panel for chat, Cowork "
+                + "and Claude Code, or type <tt>claude</tt> in a terminal. Sign in with your "
+                + "Claude account the first time."
+        }
+    }
+
+    Slide {
+        Text {
+            anchors.centerIn: parent
+            width: parent.width * 0.8
+            horizontalAlignment: Text.AlignHCenter
+            wrapMode: Text.WordWrap
+            color: "#d8f3ff"
+            font.pixelSize: 18
             text: "<b>Getting software.</b><br/><br/>Synaptic Package Manager, in the System "
                 + "menu, installs anything from the Ubuntu archive. From a terminal, "
                 + "<tt>sudo apt install</tt> does the same."
