@@ -5,6 +5,7 @@
 ubuntu-minimal
 linux-image-generic-hwe-24.04
 initramfs-tools
+plymouth-theme-spinner
 systemd-zram-generator
 sudo
 locales

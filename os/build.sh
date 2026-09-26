@@ -250,6 +250,9 @@ customize() {
         -o "$ROOTFS/usr/share/backgrounds/jungey/jungey-default.png"
     install -Dm644 "$REPO_DIR/src/main/resources/icons/jungey-256.png" \
         "$ROOTFS/usr/share/pixmaps/jungey-os.png"
+    mkdir -p "$ROOTFS/usr/share/jungey-os"
+    rsvg-convert -w 88 -h 88 "$OS_DIR/artwork/reactor.svg" \
+        -o "$ROOTFS/usr/share/jungey-os/boot-watermark.png"
 
     local hook
     rm -rf "$ROOTFS/tmp/hooks"

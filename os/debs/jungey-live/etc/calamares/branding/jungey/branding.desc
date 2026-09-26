@@ -12,11 +12,11 @@ navigation: widget
 
 strings:
     productName:         "@OS_NAME@"
-    shortProductName:    "Jungey"
+    shortProductName:    "Jungey OS"
     version:             "@OS_VERSION@"
     shortVersion:        "@OS_VERSION@"
     versionedName:       "@OS_NAME@ @OS_VERSION@"
-    shortVersionedName:  "Jungey @OS_VERSION@"
+    shortVersionedName:  "Jungey OS @OS_VERSION@"
     # GRUB_DISTRIBUTOR. grub-install derives the EFI directory from it, and the
     # Secure Boot-signed GRUB only finds its config under EFI/ubuntu.
     bootloaderEntryName: "Ubuntu"

@@ -38,6 +38,9 @@ ff02::1	ip6-allnodes
 ff02::2	ip6-allrouters
 EOF
 
+# casper's boot scripts expect the crash-report directory to exist.
+install -d -m 1777 /var/crash
+
 # casper reads this at boot to create the passwordless live user.
 cat > /etc/casper.conf <<EOF
 export USERNAME="$LIVE_USER"
