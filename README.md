@@ -258,8 +258,8 @@ detail and takes longer; set `llm.visionModel` to whichever you pulled.
 **Conversation** — anything no skill matched goes to a local model via Ollama.
 
 ```bash
-curl -fsSL https://ollama.com/install.sh | sh
-ollama pull llama3.2:3b
+scripts/setup-brain.sh                  # installs Ollama, starts it, pulls llama3.2:3b
+scripts/setup-brain.sh --model llama3   # or the larger Llama 3 8B
 ```
 
 `llama3.2:3b` is about 2 GB and runs on modest hardware. If it feels slow, drop to
