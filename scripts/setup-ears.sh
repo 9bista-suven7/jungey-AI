@@ -10,7 +10,12 @@
 # The large model stays where it is and keeps doing what it is good at: transcribing the
 # command that follows.
 #
+# --whisper also builds whisper.cpp, which hears the command itself far better than Vosk
+# does - across a room, over a fan, in any accent. Jungey keeps its server running with the
+# model loaded, so it costs a moment per command rather than a model load.
+#
 #   scripts/setup-ears.sh                  # install the wake model
+#   scripts/setup-ears.sh --whisper        # ... and whisper.cpp with its base.en model
 #   scripts/setup-ears.sh --check          # report what is installed, change nothing
 #
 set -euo pipefail
@@ -20,6 +25,10 @@ WAKE_DIR="$VOSK_HOME/wake-model"
 WAKE_MODEL="vosk-model-small-en-us-0.15"
 WAKE_URL="https://alphacephei.com/vosk/models/$WAKE_MODEL.zip"
 CONFIG="$HOME/.config/jungey/jungey.properties"
+BIN="$HOME/.local/bin"
+WHISPER_TAG="v1.9.4"
+WHISPER_SRC="$HOME/.local/share/jungey/whisper.cpp"
+WHISPER_URL="https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.en.bin"
 
 say() { printf '\033[1m%s\033[0m\n' "$*"; }
 warn() { printf '\033[33m%s\033[0m\n' "$*" >&2; }
@@ -31,6 +40,17 @@ wake_word() {
   # A config written before the wake word existed has no line for it; Jungey's own
   # default applies in that case.
   printf '%s' "${word:-purple}"
+}
+
+setting() {
+  [ -f "$CONFIG" ] && awk -F= -v key="$1" '$1 == key {print substr($0, length(key) + 2); exit}' "$CONFIG"
+}
+
+whisper_model() {
+  local path
+  path="$(setting voice.input.whisperModel)"
+  path="${path:-$HOME/.local/share/whisper/ggml-base.en.bin}"
+  printf '%s' "${path/#\~/$HOME}"
 }
 
 report() {
@@ -55,13 +75,75 @@ report() {
   else
     printf '  not installed\n'
   fi
+
+  say "Whisper: $(whisper_model)"
+  if [ -f "$(whisper_model)" ] && command -v whisper-server >/dev/null; then
+    printf '  installed, with the server Jungey keeps running\n'
+  elif [ -f "$(whisper_model)" ] && command -v whisper-cli >/dev/null; then
+    printf '  installed, without whisper-server; --whisper adds it\n'
+  else
+    printf '  not installed; --whisper adds it\n'
+  fi
 }
 
-if [ "${1:-}" = "--check" ]; then
-  report
-  exit 0
-fi
-[ $# -eq 0 ] || die "Unknown option: $1"
+install_whisper() {
+  local tool
+  for tool in git cmake g++ make; do
+    command -v "$tool" >/dev/null \
+      || die "$tool is needed to build whisper.cpp. On Debian and Ubuntu: sudo apt install git cmake build-essential"
+  done
+
+  if [ -x "$WHISPER_SRC/build/bin/whisper-server" ] \
+    && [ "$(git -C "$WHISPER_SRC" describe --tags 2>/dev/null)" = "$WHISPER_TAG" ]; then
+    say "whisper.cpp $WHISPER_TAG is already built"
+  else
+    rm -rf "$WHISPER_SRC"
+    mkdir -p "$(dirname "$WHISPER_SRC")"
+    say "Downloading whisper.cpp $WHISPER_TAG"
+    git -c advice.detachedHead=false clone --quiet --depth 1 --branch "$WHISPER_TAG" \
+      https://github.com/ggml-org/whisper.cpp "$WHISPER_SRC" || die "Could not download whisper.cpp."
+    say "Building it - a few minutes"
+    # Static, so the two binaries can be linked anywhere and still find their libraries.
+    cmake -S "$WHISPER_SRC" -B "$WHISPER_SRC/build" -DCMAKE_BUILD_TYPE=Release \
+      -DBUILD_SHARED_LIBS=OFF -DWHISPER_BUILD_TESTS=OFF >/dev/null
+    cmake --build "$WHISPER_SRC/build" -j "$(nproc)" --config Release \
+      --target whisper-server whisper-cli >/dev/null
+  fi
+
+  mkdir -p "$BIN"
+  ln -sf "$WHISPER_SRC/build/bin/whisper-server" "$BIN/whisper-server"
+  ln -sf "$WHISPER_SRC/build/bin/whisper-cli" "$BIN/whisper-cli"
+  say "Linked whisper-server and whisper-cli into $BIN"
+
+  local model
+  model="$(whisper_model)"
+  if [ -s "$model" ]; then
+    say "The Whisper model is already at $model"
+  else
+    mkdir -p "$(dirname "$model")"
+    say "Downloading the base.en Whisper model (about 140 MB)"
+    curl --fail --location --progress-bar --output "$model.part" "$WHISPER_URL" \
+      || die "Download failed: $WHISPER_URL"
+    mv -f "$model.part" "$model"
+    say "Installed $model"
+  fi
+
+  case "$(setting voice.input.engine)" in
+    vosk | none | off)
+      warn "voice.input.engine in $CONFIG is set to Vosk alone, so Whisper will not be used."
+      warn "Set it to auto (or whispercpp) to turn Whisper on." ;;
+  esac
+}
+
+WHISPER=0
+case "${1:-}" in
+  --check)
+    report
+    exit 0 ;;
+  --whisper) WHISPER=1 ;;
+  "") ;;
+  *) die "Unknown option: $1" ;;
+esac
 
 command -v curl >/dev/null || die "curl is needed to download the model."
 command -v unzip >/dev/null || die "unzip is needed. On Debian and Ubuntu: sudo apt install unzip"
@@ -107,5 +189,12 @@ if [ -n "$WORD" ] && [ -f "$WORDS" ]; then
   fi
 fi
 
+if [ "$WHISPER" = 1 ]; then
+  install_whisper
+fi
+
 echo
 echo "Restart Jungey. The console should say \"grammar wake\" when the ears open."
+if [ "$WHISPER" = 1 ]; then
+  echo "It should end its \"Listening for\" line with \"vosk + whisper.cpp (server)\"."
+fi

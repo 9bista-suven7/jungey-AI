@@ -16,8 +16,12 @@ import java.util.HexFormat;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
@@ -48,9 +52,26 @@ public final class Speaker {
         return t;
     });
 
+    /**
+     * Where a running Piper synthesises, ahead of what is being played: by the time a
+     * sentence finishes, the next is already waiting, and a streamed reply has no gaps but
+     * the pause the voice is set to.
+     */
+    private final ExecutorService synth = Executors.newSingleThreadExecutor(r -> {
+        Thread t = new Thread(r, "jungey-voice-synth");
+        t.setDaemon(true);
+        return t;
+    });
+
+    /** How long a running Piper gets for one line before it is restarted. */
+    private static final long SYNTH_TIMEOUT_S = 30;
+
     private final AudioOut audio = new AudioOut();
 
     private final Engine engine;
+
+    /** Piper kept running between lines, or null for the other engines and Python builds. */
+    private final PiperDaemon piperd;
     private volatile boolean muted;
     private volatile Process current;
 
@@ -71,6 +92,10 @@ public final class Speaker {
     public Speaker() {
         this.engine = detect();
         this.muted = !Config.get().bool("voice.enabled");
+        this.piperd = engine == Engine.PIPER && PiperDaemon.supported(piperHelpText())
+                ? new PiperDaemon(piperCommand()) : null;
+        // Load the voice now rather than while the first reply waits for it.
+        if (piperd != null && !muted) synth.submit(piperd::warmUp);
         System.out.println("[jungey] voice engine: " + engineDetail() + (muted ? " (muted)" : ""));
     }
 
@@ -190,22 +215,42 @@ public final class Speaker {
         String clean = Spoken.forSpeech(text, Config.get().intv("voice.maxChars", 400));
         if (clean.isBlank()) return;
 
-        // The whole reply goes to one engine invocation. Splitting it into sentences and
-        // synthesising them separately sounds like it should start sooner, but Piper loads
-        // a 60 MB model per process: the silence that buys between sentences is longer than
-        // the head start, and Piper streams its audio sentence by sentence regardless.
         int queuedIn = generation.get();
         pending.incrementAndGet();
+        Future<byte[]> ahead = piperd == null ? null
+                : synth.submit(() -> queuedIn == generation.get() ? piperd.synthesise(clean) : null);
         voice.submit(() -> {
             try {
                 if (queuedIn != generation.get()) return;
-                speakNow(clean);
+                byte[] clip = ahead == null ? null : await(ahead);
+                if (queuedIn != generation.get()) return;
+                if (clip != null) {
+                    audio.play(clip);
+                } else {
+                    speakNow(clean);
+                }
             } catch (Exception e) {
                 System.err.println("[jungey] speech failed: " + e.getMessage());
             } finally {
                 pending.decrementAndGet();
             }
         });
+    }
+
+    /** A line from the running Piper, or null to speak it some other way. */
+    private byte[] await(Future<byte[]> clip) {
+        try {
+            return clip.get(SYNTH_TIMEOUT_S, TimeUnit.SECONDS);
+        } catch (TimeoutException e) {
+            System.err.println("[jungey] piper took over " + SYNTH_TIMEOUT_S + "s on a line; restarting it");
+            piperd.kill();
+            return null;
+        } catch (ExecutionException e) {
+            return null;
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            return null;
+        }
     }
 
     private void speakNow(String text) throws Exception {
@@ -224,25 +269,13 @@ public final class Speaker {
     // ---------------------------------------------------------------- piper
 
     /**
-     * Piper streams raw PCM on stdout as it synthesises, so the first words are audible
-     * before the last ones exist. The sample rate is whatever the model was trained at -
-     * assuming 22.05 kHz is how a voice ends up sounding like a chipmunk.
+     * A Piper of its own for one line, used when no Piper is kept running. It streams raw
+     * PCM on stdout as it synthesises, and the sample rate is whatever the model was trained
+     * at - assuming 22.05 kHz is how a voice ends up sounding like a chipmunk.
      */
     private void speakPiper(String text) throws Exception {
-        List<String> cmd = new ArrayList<>(List.of(resolve("piper"),
-                "--model", piperModel().toString(),
-                rawFlag()));
-
-        String lengthFlag = firstSupported("--length-scale", "--length_scale");
-        if (lengthFlag != null) {
-            cmd.add(lengthFlag);
-            cmd.add(Config.get().str("voice.piper.speed", "1.0"));
-        }
-        String silenceFlag = firstSupported("--sentence-silence", "--sentence_silence");
-        if (silenceFlag != null) {
-            cmd.add(silenceFlag);
-            cmd.add(Config.get().str("voice.piper.pause", "0.35"));
-        }
+        List<String> cmd = piperCommand();
+        cmd.add(rawFlag());
 
         Process p = new ProcessBuilder(cmd)
                 .redirectError(ProcessBuilder.Redirect.DISCARD)
@@ -256,6 +289,24 @@ public final class Speaker {
             p.destroy();
             current = null;
         }
+    }
+
+    /** Piper with the configured voice, speed and pause, ready for an output flag. */
+    private static List<String> piperCommand() {
+        List<String> cmd = new ArrayList<>(List.of(resolve("piper"),
+                "--model", piperModel().toString()));
+
+        String lengthFlag = firstSupported("--length-scale", "--length_scale");
+        if (lengthFlag != null) {
+            cmd.add(lengthFlag);
+            cmd.add(Config.get().str("voice.piper.speed", "1.0"));
+        }
+        String silenceFlag = firstSupported("--sentence-silence", "--sentence_silence");
+        if (silenceFlag != null) {
+            cmd.add(silenceFlag);
+            cmd.add(Config.get().str("voice.piper.pause", "0.35"));
+        }
+        return cmd;
     }
 
     /** The sample rate declared in the voice's companion JSON, next to the .onnx. */
@@ -444,5 +495,7 @@ public final class Speaker {
     public void shutdown() {
         stop();
         voice.shutdownNow();
+        synth.shutdownNow();
+        if (piperd != null) piperd.close();
     }
 }

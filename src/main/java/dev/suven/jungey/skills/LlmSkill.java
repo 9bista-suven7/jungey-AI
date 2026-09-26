@@ -83,7 +83,7 @@ public class LlmSkill implements Skill {
 
     /** How long Ollama keeps a model in memory after a request. Reloading it from disk is the slow part. */
     public static String keepAlive() {
-        return Config.get().str("llm.keepAlive", "60m");
+        return Config.get().str("llm.keepAlive", "24h");
     }
 
     /**

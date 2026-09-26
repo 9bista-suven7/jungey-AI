@@ -46,8 +46,22 @@ final class Transcriber {
 
     private final Kind kind;
 
+    /** whisper.cpp kept running with its model loaded, when its server is installed. */
+    private final WhisperServer server;
+
     Transcriber() {
         this.kind = detect();
+        String serverBinary = kind == Kind.WHISPER_CPP ? WhisperServer.find() : null;
+        this.server = serverBinary == null ? null : new WhisperServer(serverBinary, whisperModel());
+    }
+
+    /**
+     * Start loading the Whisper model, so the first command does not wait for it. Called when
+     * the ears open rather than at construction: a server nobody will speak to is a few
+     * hundred megabytes spent on nothing.
+     */
+    void warmUp() {
+        if (server != null) server.start();
     }
 
     private static Kind detect() {
@@ -87,7 +101,7 @@ final class Transcriber {
         return switch (kind) {
             case NONE -> "vosk";
             case HF -> "vosk + " + hfModel().substring(hfModel().indexOf('/') + 1) + " (hosted)";
-            case WHISPER_CPP -> "vosk + whisper.cpp";
+            case WHISPER_CPP -> "vosk + whisper.cpp" + (server != null ? " (server)" : "");
         };
     }
 
@@ -115,7 +129,7 @@ final class Transcriber {
         try {
             String text = switch (kind) {
                 case HF -> viaHuggingFace(wav(pcm));
-                case WHISPER_CPP -> viaWhisperCpp(wav(pcm));
+                case WHISPER_CPP -> viaWhisperCpp(server, wav(pcm));
                 case NONE -> "";
             };
             return clean(text);
@@ -143,11 +157,20 @@ final class Transcriber {
         return Config.get().str("voice.input.hf.model", "openai/whisper-large-v3");
     }
 
-    private static String viaWhisperCpp(byte[] wav) throws IOException, InterruptedException {
+    private static String viaWhisperCpp(WhisperServer server, byte[] wav) throws IOException, InterruptedException {
+        if (server != null) {
+            String text = server.transcribe(wav);
+            if (text != null) return text;
+        }
+        // No server, or it is still loading: a whisper-cli of its own, which loads the
+        // model for this one clip.
+        String cli = whisperBinary();
+        if (cli == null) return "";
+
         Path clip = Files.createTempFile("jungey-heard-", ".wav");
         try {
             Files.write(clip, wav);
-            Process p = new ProcessBuilder(whisperBinary(),
+            Process p = new ProcessBuilder(cli,
                     "-m", whisperModel().toString(),
                     "-f", clip.toString(),
                     "-nt",          // no timestamps, just the words
@@ -165,7 +188,8 @@ final class Transcriber {
     }
 
     private static boolean whisperCppReady() {
-        return whisperBinary() != null && Files.isRegularFile(whisperModel());
+        return (whisperBinary() != null || WhisperServer.find() != null)
+                && Files.isRegularFile(whisperModel());
     }
 
     private static String whisperBinary() {

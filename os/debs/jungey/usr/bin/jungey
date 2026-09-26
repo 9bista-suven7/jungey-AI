@@ -2,4 +2,15 @@
 # Start the Jungey assistant on the system's Java 21 runtime.
 JAVA=/usr/lib/jvm/java-21-openjdk-amd64/bin/java
 [ -x "$JAVA" ] || JAVA=java
-exec "$JAVA" -jar /usr/share/jungey/jungey.jar "$@"
+JAR=/usr/share/jungey/jungey.jar
+
+# Class data sharing: the first start records the classes Jungey loads, later starts map
+# them in at once. Java 21 does not rebuild an archive when the jar changes, so each
+# version of the jar gets its own, named after its timestamp and size.
+CACHE="${XDG_CACHE_HOME:-$HOME/.cache}/jungey"
+CDS="$CACHE/jungey-$(stat -c %Y-%s "$JAR").jsa"
+if mkdir -p "$CACHE" 2>/dev/null; then
+    find "$CACHE" -maxdepth 1 -name 'jungey*.jsa' ! -path "$CDS" -delete
+    exec "$JAVA" -XX:+AutoCreateSharedArchive -XX:SharedArchiveFile="$CDS" -jar "$JAR" "$@"
+fi
+exec "$JAVA" -jar "$JAR" "$@"
