@@ -64,6 +64,7 @@ network-manager
 network-manager-gnome
 wpasupplicant
 iw
+rfkill
 wireless-regdb
 bluez
 blueman
