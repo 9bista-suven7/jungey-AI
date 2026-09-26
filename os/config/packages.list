@@ -33,6 +33,8 @@ usbutils
 lsb-release
 software-properties-common
 unattended-upgrades
+# Keeps Intel laptops from overheating and throttling.
+thermald
 
 # --- Boot loader ---
 # grub-pc serves BIOS machines; the signed EFI images and shim serve UEFI,
@@ -72,6 +74,11 @@ wireplumber
 # PipeWire's Bluetooth plugin: without it headphones pair but play nothing.
 libspa-0.2-bluetooth
 alsa-utils
+# Intel "Smart Sound" (most Intel laptops from 2019 on) has no sound without
+# this firmware and ALSA's device profiles. linux-firmware only recommends it.
+firmware-sof-signed
+alsa-ucm-conf
+alsa-topology-conf
 pulseaudio-utils
 pavucontrol
 
@@ -88,6 +95,9 @@ dbus-user-session
 dbus-x11
 at-spi2-core
 mesa-utils
+# Hardware video decoding (Intel, then AMD), so videos play cool and cheaply.
+intel-media-va-driver
+mesa-va-drivers
 
 # --- Desktop: Xfce ---
 lightdm

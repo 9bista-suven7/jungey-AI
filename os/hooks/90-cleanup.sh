@@ -16,5 +16,10 @@ rm -f /etc/ssh/ssh_host_*
 # Ubuntu's normal resolver setup (the build pointed it elsewhere).
 ln -sf ../run/systemd/resolve/stub-resolv.conf /etc/resolv.conf
 
+# The package scripts already rebuilt the library cache, hwdb and journal
+# catalog. Mark /etc and /var up to date with /usr so systemd does not redo that
+# work on every live boot and on the installed system's first boot.
+touch /etc/.updated /var/.updated
+
 find /var/log -type f -exec truncate -s 0 {} +
 rm -rf /tmp/* /var/tmp/* /root/.bash_history /root/.cache
