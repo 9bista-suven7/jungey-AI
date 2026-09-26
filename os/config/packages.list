@@ -69,6 +69,8 @@ pipewire
 pipewire-pulse
 pipewire-alsa
 wireplumber
+# PipeWire's Bluetooth plugin: without it headphones pair but play nothing.
+libspa-0.2-bluetooth
 alsa-utils
 pulseaudio-utils
 pavucontrol

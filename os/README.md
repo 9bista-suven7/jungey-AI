@@ -12,6 +12,7 @@ disk, and a graphical installer puts it on the machine for good.
 | Claude | Claude Desktop (Chat, Cowork, Claude Code; Anthropic's Linux beta) and the `claude` command-line tool, from Anthropic's apt repositories |
 | Apps | Jungey, GNOME Web browser, Thunar files, Mousepad, Ristretto images, Atril PDF, Parole media, Synaptic package manager |
 | Installer | Calamares: erase disk, install alongside Windows, or manual partitioning, optional disk encryption |
+| Hardware | Wi-Fi and Bluetooth (including Bluetooth headphones), with drivers and firmware for Intel, Realtek, MediaTek, Qualcomm/Atheros and most Broadcom chips; Ubuntu's hardware-enablement kernel for recent laptops |
 | Boots on | BIOS and UEFI, with Secure Boot on or off |
 | Needs | 64-bit x86 PC, 2 GB RAM (1 GB works, slowly), 12 GB disk, a 4 GB+ USB stick |
 | Footprint | about 600 MB of RAM at the desktop and 3.5 GB of disk after installing |
@@ -56,6 +57,10 @@ The Jungey OS menu appears. **Try or install Jungey OS** starts the live desktop
 in about a minute. If the screen stays black, reboot and choose
 **safe graphics**.
 
+Before installing, check the hardware from the live desktop: join Wi-Fi from the
+network icon in the panel, and try sound and Bluetooth. A Wi-Fi network you join
+here is remembered by the installed system.
+
 Secure Boot can stay on: the stick uses Ubuntu's signed boot loader.
 
 ## 4. Install
@@ -75,6 +80,13 @@ restart.
 
 ## After installing
 
+- **Wi-Fi and Bluetooth:** the network icon in the panel joins Wi-Fi; the
+  Bluetooth icon (shown when the computer has Bluetooth) pairs headphones, mice
+  and phones. A few older Broadcom Wi-Fi chips need Broadcom's own driver: connect
+  by cable or with your phone's USB tethering (works out of the box), then run
+  `sudo apt install linux-headers-generic-hwe-24.04 bcmwl-kernel-source` and
+  restart. With Secure Boot on, it asks for a one-time password during the install
+  and has you enter it on a blue "Enroll MOK" screen at the restart.
 - **Updates:** security updates install themselves daily. For everything else,
   `sudo apt update && sudo apt upgrade`, or Synaptic → Reload → Mark All
   Upgrades → Apply.
