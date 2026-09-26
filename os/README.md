@@ -10,9 +10,9 @@ disk, and a graphical installer puts it on the machine for good.
 | Base | Ubuntu 24.04 LTS (security updates until 2029), hardware-enablement kernel |
 | Desktop | Xfce 4.18 with LightDM, dark Greybird theme |
 | Claude | Claude Desktop (Chat, Cowork, Claude Code; Anthropic's Linux beta) and the `claude` command-line tool, from Anthropic's apt repositories |
-| Apps | Jungey, GNOME Web browser, Thunar files, Mousepad, Ristretto images, Atril PDF, Parole media, Synaptic package manager |
+| Apps | Jungey, GNOME Web browser, Thunar files, Mousepad, Ristretto images, Atril PDF, Parole media, Cheese camera, Synaptic package manager |
 | Installer | Calamares: erase disk, install alongside Windows, or manual partitioning, optional disk encryption |
-| Hardware | Wi-Fi and Bluetooth (including Bluetooth headphones), with drivers and firmware for Intel, Realtek, MediaTek, Qualcomm/Atheros and most Broadcom chips; Ubuntu's hardware-enablement kernel for recent laptops |
+| Hardware | Wi-Fi and Bluetooth (including Bluetooth headphones), with drivers and firmware for Intel, Realtek, MediaTek, Qualcomm/Atheros and most Broadcom chips; USB webcams, which covers most laptop cameras; Ubuntu's hardware-enablement kernel for recent laptops |
 | Boots on | BIOS and UEFI, with Secure Boot on or off |
 | Needs | 64-bit x86 PC, 2 GB RAM (1 GB works, slowly), 12 GB disk, a 4 GB+ USB stick |
 | Footprint | about 600 MB of RAM at the desktop and 3.5 GB of disk after installing |
@@ -58,7 +58,7 @@ in about a minute. If the screen stays black, reboot and choose
 **safe graphics**.
 
 Before installing, check the hardware from the live desktop: join Wi-Fi from the
-network icon in the panel, and try sound and Bluetooth. A Wi-Fi network you join
+network icon in the panel, and try sound, Bluetooth and the camera (Cheese). A Wi-Fi network you join
 here is remembered by the installed system.
 
 Secure Boot can stay on: the stick uses Ubuntu's signed boot loader.
@@ -87,6 +87,12 @@ restart.
   `sudo apt install linux-headers-generic-hwe-24.04 bcmwl-kernel-source` and
   restart. With Secure Boot on, it asks for a one-time password during the install
   and has you enter it on a blue "Enroll MOK" screen at the restart.
+- **Camera:** Cheese (menu → Multimedia) takes photos and video, and Jungey
+  answers "open camera", "take a photo" and "record video". Most laptop cameras
+  are USB webcams and just work. Some recent Intel laptops use a different kind
+  (MIPI cameras on Intel's IPU6 or IPU7), which Ubuntu 24.04 supports only on some
+  models, so try the camera in the live session before installing. `lsusb` lists
+  a USB webcam if yours is one.
 - **Updates:** security updates install themselves daily. For everything else,
   `sudo apt update && sudo apt upgrade`, or Synaptic → Reload → Mark All
   Upgrades → Apply.
