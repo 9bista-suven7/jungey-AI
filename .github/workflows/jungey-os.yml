@@ -1,0 +1,89 @@
+name: Jungey OS ISO
+
+# Builds the bootable Jungey OS image and publishes it as a GitHub release:
+#   - any push that touches the OS or Jungey refreshes the "jungey-os-latest"
+#     pre-release, so there is always a current ISO to download;
+#   - pushing a tag like os-v1.0 publishes a permanent release under that tag.
+on:
+  push:
+    branches: ["**"]
+    tags: ["os-v*"]
+    paths:
+      - "os/**"
+      - "src/**"
+      - "pom.xml"
+      - ".github/workflows/jungey-os.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: jungey-os-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  iso:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: maven
+
+      - name: Make room on the runner
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL
+          df -h /
+
+      - name: Install image tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y debootstrap squashfs-tools xorriso mtools dosfstools librsvg2-bin rsync
+
+      - name: Build Jungey
+        run: mvn -B -q -DskipTests package
+
+      - name: Build the ISO
+        run: |
+          jar=$(ls target/jungey-*.jar | grep -v original- | head -1)
+          sudo JUNGEY_JAR="$PWD/$jar" ./os/build.sh
+          ls -lh os/out
+
+      - name: Keep the ISO with this run
+        uses: actions/upload-artifact@v4
+        with:
+          name: jungey-os-iso
+          path: os/out/
+          compression-level: 0
+          retention-days: 14
+
+      - name: Publish the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          iso=$(ls os/out/*.iso)
+          if [[ "$GITHUB_REF" == refs/tags/os-v* ]]; then
+            tag=${GITHUB_REF#refs/tags/}
+            title="Jungey OS ${tag#os-v}"
+            flags=()
+          else
+            tag=jungey-os-latest
+            title="Jungey OS (latest build)"
+            flags=(--prerelease --target "$GITHUB_SHA")
+            gh release delete "$tag" --cleanup-tag --yes 2>/dev/null || true
+          fi
+          cat > notes.md <<EOF
+          Bootable Jungey OS image for 64-bit PCs, built from ${GITHUB_SHA::7} on ${GITHUB_REF_NAME}.
+
+          1. Download \`$(basename "$iso")\` (and the \`.sha256\` file to check it).
+          2. Write it to a USB stick of 4 GB or more with [balenaEtcher](https://etcher.balena.io/) or Rufus (DD mode), or \`sudo dd if=$(basename "$iso") of=/dev/sdX bs=4M status=progress oflag=sync\`.
+          3. Boot the computer from the stick, try the live desktop, then double-click **Install Jungey OS**.
+
+          Full guide: [os/README.md](https://github.com/${GITHUB_REPOSITORY}/blob/${GITHUB_SHA}/os/README.md)
+          EOF
+          gh release create "$tag" "$iso" "$iso.sha256" --title "$title" --notes-file notes.md "${flags[@]}"

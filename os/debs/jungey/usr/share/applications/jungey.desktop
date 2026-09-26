@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=Jungey
+GenericName=Assistant
+Comment=Ask questions and control the desktop by typing or talking
+Exec=jungey
+Icon=jungey
+Terminal=false
+Categories=Utility;
+Keywords=assistant;jarvis;voice;ai;

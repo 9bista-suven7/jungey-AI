@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="400" height="400" viewBox="0 0 400 400">
+  <!-- The arc reactor on its own, for the installer's welcome page. -->
+  <defs>
+    <radialGradient id="core" cx="50%" cy="50%" r="50%">
+      <stop offset="0" stop-color="#ffffff"/>
+      <stop offset="0.35" stop-color="#bff3ff"/>
+      <stop offset="1" stop-color="#27c4f5"/>
+    </radialGradient>
+    <radialGradient id="glow" cx="50%" cy="50%" r="50%">
+      <stop offset="0.6" stop-color="#5ad7ff" stop-opacity="0.45"/>
+      <stop offset="1" stop-color="#5ad7ff" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <circle cx="200" cy="200" r="198" fill="url(#glow)"/>
+  <circle cx="200" cy="200" r="170" fill="#0c1a26"/>
+  <circle cx="200" cy="200" r="155" fill="none" stroke="#1f6f8b" stroke-width="10"/>
+  <!-- ten segments: circumference 2*pi*118 = 741.4, so 74.1 per segment -->
+  <circle cx="200" cy="200" r="118" fill="none" stroke="#5ad7ff" stroke-width="34"
+          stroke-dasharray="60.1 14" transform="rotate(-81 200 200)"/>
+  <circle cx="200" cy="200" r="80" fill="#0c1a26"/>
+  <circle cx="200" cy="200" r="70" fill="none" stroke="#9eeaff" stroke-width="6"/>
+  <circle cx="200" cy="200" r="52" fill="url(#core)"/>
+</svg>

@@ -1,0 +1,5 @@
+# Only the live session needs these. The installer removes them (and whatever
+# they alone pulled in) from the installed system.
+casper
+calamares
+jungey-live

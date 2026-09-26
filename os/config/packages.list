@@ -1,0 +1,130 @@
+# Everything the installed system has. Installed without recommends, so each
+# package here is wanted on purpose. One per line; '#' starts a comment.
+
+# --- Base system ---
+ubuntu-minimal
+linux-image-generic-hwe-24.04
+initramfs-tools
+systemd-zram-generator
+sudo
+locales
+tzdata
+console-setup
+keyboard-configuration
+bash-completion
+command-not-found
+less
+nano
+vim-tiny
+htop
+curl
+wget
+ca-certificates
+gnupg
+openssh-client
+rsync
+zip
+unzip
+xz-utils
+zstd
+pciutils
+usbutils
+lsb-release
+software-properties-common
+unattended-upgrades
+
+# --- Boot loader ---
+# grub-pc serves BIOS machines; the signed EFI images and shim serve UEFI,
+# including with Secure Boot on. The installer uses whichever the machine needs.
+grub-pc
+grub-efi-amd64-bin
+grub-efi-amd64-signed
+shim-signed
+efibootmgr
+mokutil
+os-prober
+
+# --- Disks and filesystems ---
+e2fsprogs
+dosfstools
+ntfs-3g
+exfatprogs
+cryptsetup
+cryptsetup-initramfs
+udisks2
+gvfs
+gvfs-backends
+gvfs-fuse
+
+# --- Network, sound, bluetooth ---
+network-manager
+network-manager-gnome
+wpasupplicant
+iw
+wireless-regdb
+bluez
+blueman
+pipewire
+pipewire-pulse
+pipewire-alsa
+wireplumber
+alsa-utils
+pulseaudio-utils
+pavucontrol
+
+# --- Graphics ---
+xserver-xorg-core
+xserver-xorg-video-all
+xserver-xorg-input-all
+x11-xserver-utils
+x11-utils
+xdg-utils
+xdg-user-dirs
+xdg-user-dirs-gtk
+dbus-user-session
+dbus-x11
+at-spi2-core
+mesa-utils
+
+# --- Desktop: Xfce ---
+lightdm
+lightdm-gtk-greeter
+light-locker
+xfce4
+xfce4-terminal
+xfce4-whiskermenu-plugin
+xfce4-pulseaudio-plugin
+xfce4-power-manager
+xfce4-notifyd
+xfce4-screenshooter
+xfce4-taskmanager
+thunar-volman
+thunar-archive-plugin
+tumbler
+policykit-1-gnome
+greybird-gtk-theme
+elementary-xfce-icon-theme
+dmz-cursor-theme
+librsvg2-common
+fonts-ubuntu
+fonts-dejavu-core
+fonts-liberation2
+fonts-noto-color-emoji
+fonts-lohit-deva
+
+# --- Applications ---
+epiphany-browser
+mousepad
+ristretto
+atril
+parole
+xarchiver
+synaptic
+gstreamer1.0-plugins-good
+gstreamer1.0-libav
+
+# --- Jungey's optional helpers (voice, camera, screen reading) ---
+espeak-ng
+ffmpeg
+tesseract-ocr
+brightnessctl

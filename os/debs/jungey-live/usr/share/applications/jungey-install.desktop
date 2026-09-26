@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=Install @OS_NAME@
+GenericName=Install to disk
+Comment=Install @OS_NAME@ @OS_VERSION@ on this computer
+Exec=jungey-install
+Icon=jungey
+Terminal=false
+StartupNotify=true
+Categories=System;
+Keywords=installer;calamares;install;

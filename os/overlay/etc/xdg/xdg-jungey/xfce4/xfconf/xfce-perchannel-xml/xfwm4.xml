@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Jungey OS window decorations. Anything not set here keeps xfwm4's default. -->
+<channel name="xfwm4" version="1.0">
+  <property name="general" type="empty">
+    <property name="theme" type="string" value="Greybird-dark"/>
+    <property name="title_font" type="string" value="Ubuntu Bold 10"/>
+    <property name="button_layout" type="string" value="O|HMC"/>
+    <property name="placement_ratio" type="int" value="100"/>
+  </property>
+</channel>

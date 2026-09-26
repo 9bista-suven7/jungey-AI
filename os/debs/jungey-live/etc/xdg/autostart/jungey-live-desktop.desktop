@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Jungey OS live desktop
+Comment=Puts the installer on the live session's desktop
+Exec=/usr/libexec/jungey-live/setup-desktop
+OnlyShowIn=XFCE;
+NoDisplay=true
+X-XFCE-Autostart-Override=true

@@ -1,0 +1,11 @@
+Package: jungey-live
+Version: @VERSION@
+Architecture: all
+Section: admin
+Priority: optional
+Maintainer: Jungey OS <jungey@localhost>
+Depends: calamares, casper, sudo
+Description: Jungey OS live session and installer settings
+ Configures the Calamares installer for Jungey OS and puts an install
+ launcher on the live desktop. The installer removes this package from the
+ system it installs.

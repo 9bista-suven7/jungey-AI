@@ -1,0 +1,16 @@
+#!/bin/sh
+# Live session only: put "Install Jungey OS" on the desktop, already trusted,
+# so it starts with one double-click instead of an "untrusted launcher" prompt.
+grep -qw 'boot=casper' /proc/cmdline || exit 0
+
+desktop=$(xdg-user-dir DESKTOP 2>/dev/null || echo "$HOME/Desktop")
+mkdir -p "$desktop"
+for app in jungey-install jungey; do
+    target="$desktop/$app.desktop"
+    [ -e "$target" ] && continue
+    cp "/usr/share/applications/$app.desktop" "$target"
+    chmod +x "$target"
+    # Xfce trusts a launcher whose checksum it has recorded.
+    gio set -t string "$target" metadata::xfce-exe-checksum \
+        "$(sha256sum "$target" | cut -d' ' -f1)" 2>/dev/null || true
+done

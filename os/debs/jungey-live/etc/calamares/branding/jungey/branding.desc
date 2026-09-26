@@ -1,0 +1,38 @@
+# Look and names of the Jungey OS installer. build.sh fills in the @...@ values
+# and adds logo.png, icon.png and welcome.png.
+---
+componentName:  jungey
+welcomeStyleCalamares: false
+welcomeExpandingLogo: true
+windowExpanding: normal
+windowSize: 960px,640px
+windowPlacement: center
+sidebar: widget
+navigation: widget
+
+strings:
+    productName:         "@OS_NAME@"
+    shortProductName:    "Jungey"
+    version:             "@OS_VERSION@"
+    shortVersion:        "@OS_VERSION@"
+    versionedName:       "@OS_NAME@ @OS_VERSION@"
+    shortVersionedName:  "Jungey @OS_VERSION@"
+    # GRUB_DISTRIBUTOR. grub-install derives the EFI directory from it, and the
+    # Secure Boot-signed GRUB only finds its config under EFI/ubuntu.
+    bootloaderEntryName: "Ubuntu"
+    productUrl:          "https://github.com/9bista-suven7/jungey-AI"
+    supportUrl:          "https://github.com/9bista-suven7/jungey-AI/issues"
+
+images:
+    productLogo:         "logo.png"
+    productIcon:         "icon.png"
+    productWelcome:      "welcome.png"
+
+slideshow:               "show.qml"
+slideshowAPI:            1
+
+style:
+   SidebarBackground:        "#0b1622"
+   SidebarText:              "#d8f3ff"
+   SidebarTextCurrent:       "#ffffff"
+   SidebarBackgroundCurrent: "#1f6f8b"

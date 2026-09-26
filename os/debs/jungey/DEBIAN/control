@@ -1,0 +1,15 @@
+Package: jungey
+Version: @VERSION@
+Architecture: amd64
+Section: utils
+Priority: optional
+Maintainer: Jungey OS <jungey@localhost>
+Depends: openjdk-21-jre, libgtk-3-0t64, xdg-utils, wmctrl, libnotify-bin, pulseaudio-utils
+Recommends: espeak-ng, ffmpeg, tesseract-ocr, brightnessctl, network-manager, xfce4-screenshooter
+Homepage: https://github.com/9bista-suven7/jungey-AI
+Description: local-first desktop assistant
+ Jungey (Just a Unified Neural Gateway Engineered for You) answers everyday
+ questions and drives the desktop: time, maths, weather, notes and timers,
+ volume, windows, screenshots, camera and screen reading. Simple commands are
+ answered on the machine; it reaches the network only when a question needs
+ live data.
