@@ -10,6 +10,7 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.util.Map;
 
 /** Thin wrapper over the JDK HTTP client. Every online skill goes through here. */
 public final class Http {
@@ -44,6 +45,48 @@ public final class Http {
 
     public static JsonNode getJson(String url) throws Exception {
         return MAPPER.readTree(get(url));
+    }
+
+    /**
+     * A POST whose reply may be audio as easily as JSON, so the body comes back as bytes.
+     * Speech services want minutes of patience on a cold model, hence the explicit timeout.
+     */
+    public static Reply post(String url, byte[] body, String contentType,
+                             Map<String, String> headers, Duration timeout) throws Exception {
+        HttpRequest.Builder req = HttpRequest.newBuilder(URI.create(url))
+                .timeout(timeout)
+                .header("User-Agent", USER_AGENT)
+                .header("Content-Type", contentType)
+                .POST(HttpRequest.BodyPublishers.ofByteArray(body));
+
+        headers.forEach(req::header);
+
+        HttpResponse<byte[]> res = CLIENT.send(req.build(), HttpResponse.BodyHandlers.ofByteArray());
+        return new Reply(res.statusCode(), res.body(),
+                res.headers().firstValue("content-type").orElse(""));
+    }
+
+    /** A raw HTTP reply: status kept alongside the body so callers can retry on their own terms. */
+    public record Reply(int status, byte[] body, String contentType) {
+
+        public boolean ok() {
+            return status / 100 == 2;
+        }
+
+        public String text() {
+            return new String(body, StandardCharsets.UTF_8);
+        }
+
+        public JsonNode json() throws Exception {
+            return MAPPER.readTree(body);
+        }
+
+        /** The first line of an error body - enough to say what went wrong, short enough to log. */
+        public String error() {
+            String message = text().replaceAll("<[^>]*>", " ").replaceAll("\\s+", " ").trim();
+            if (message.length() > 140) message = message.substring(0, 140) + "…";
+            return "HTTP " + status + (message.isBlank() ? "" : " - " + message);
+        }
     }
 
     public static String enc(String value) {

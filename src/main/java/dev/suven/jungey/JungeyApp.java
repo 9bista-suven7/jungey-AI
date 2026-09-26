@@ -142,15 +142,21 @@ public class JungeyApp extends Application implements dev.suven.jungey.core.View
 
     private void onEars(Listener.State state) {
         if (state == Listener.State.LISTENING) {
-            speaker.stop();   // stop talking the moment it is addressed
-            console.addSystem("Yes?");
-            reactor.setState(ReactorView.State.THINKING);
+            // Addressed mid-sentence: stop talking. But a follow-up window opens while the
+            // reply that offered it is still being spoken, and cutting that off is how a
+            // spoken answer ends up truncated.
+            if (listener.wokenByName()) {
+                speaker.stop();
+                console.addSystem("Yes?");
+                reactor.setState(ReactorView.State.THINKING);
+            }
         } else if (state == Listener.State.WAITING) {
             // The model takes a while to load, so the first WAITING is when the ears truly open.
             if (!earsAnnounced) {
                 earsAnnounced = true;
                 console.addSystem("Listening for \""
-                        + Config.get().str("voice.input.wakeWord", "jungey") + "\".");
+                        + Config.get().str("voice.input.wakeWord", "purple")
+                        + "\" - ears: " + listener.inputLabel() + ".");
             }
             reactor.setState(ReactorView.State.IDLE);
         }
