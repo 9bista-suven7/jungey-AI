@@ -19,6 +19,8 @@
 #   JUNGEY_JAR=f    use this jar instead of running Maven
 #   WITH_CLAUDE=0   leave out Claude Desktop and Claude Code, for builds that
 #                   cannot reach downloads.claude.ai
+#   WITH_VOICE=0    leave out Jungey's piper voice and Vosk model, for builds
+#                   that cannot reach huggingface.co and alphacephei.com
 set -euo pipefail
 
 OS_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
@@ -53,8 +55,8 @@ check_host() {
     for tool in debootstrap mksquashfs xorriso mcopy mkfs.vfat rsvg-convert rsync; do
         command -v "$tool" >/dev/null || missing+=("$tool")
     done
-    if [ "$WITH_CLAUDE" = 1 ]; then
-        for tool in curl gpg; do
+    if [ "$WITH_CLAUDE" = 1 ] || [ "$WITH_VOICE" = 1 ]; then
+        for tool in curl gpg unzip; do
             command -v "$tool" >/dev/null || missing+=("$tool")
         done
     fi
@@ -305,6 +307,8 @@ customize() {
     rsvg-convert -w 88 -h 88 "$OS_DIR/artwork/reactor.svg" \
         -o "$ROOTFS/usr/share/jungey-os/boot-watermark.png"
 
+    install_voice
+
     local hook
     rm -rf "$ROOTFS/tmp/hooks"
     cp -r "$OS_DIR/hooks" "$ROOTFS/tmp/hooks"
@@ -313,6 +317,55 @@ customize() {
         in_chroot /bin/bash -e "/tmp/hooks/$(basename "$hook")"
     done
     rm -rf "$ROOTFS/tmp/hooks"
+}
+
+# Jungey's human voice and its ears, installed once for every user: piper and
+# the en_GB "alan" voice for speech, the small Vosk model for the wake word and
+# commands. /etc/skel links each new home to them (see overlay/etc/skel), where
+# Jungey looks by default. Downloads are cached in $WORK/cache between builds.
+PIPER_URL=https://github.com/rhasspy/piper/releases/download/2023.11.14-2/piper_linux_x86_64.tar.gz
+PIPER_SHA256=a50cb45f355b7af1f6d758c1b360717877ba0a398cc8cbe6d2a7a3a26e225992
+VOICE_URL=https://huggingface.co/rhasspy/piper-voices/resolve/v1.0.0/en/en_GB/alan/medium/en_GB-alan-medium.onnx
+VOSK_URL=https://alphacephei.com/vosk/models/vosk-model-small-en-us-0.15.zip
+
+fetch() {
+    local url=$1 dest
+    dest=$WORK/cache/$(basename "$url")
+    mkdir -p "$WORK/cache"
+    if [ ! -s "$dest" ]; then
+        curl -fsSL --retry 3 -o "$dest.part" "$url" && mv -f "$dest.part" "$dest" ||
+            die "cannot download $url; WITH_VOICE=0 builds without Jungey's voice"
+    fi
+    echo "$dest"
+}
+
+install_voice() {
+    if [ "$WITH_VOICE" != 1 ]; then
+        log "Leaving out Jungey's voice (WITH_VOICE=$WITH_VOICE)"
+        return
+    fi
+    log "Installing Jungey's voice (piper) and ears (Vosk)"
+    local tarball voice json vosk
+    tarball=$(fetch "$PIPER_URL")
+    echo "$PIPER_SHA256  $tarball" | sha256sum -c --quiet || die "piper download does not match its checksum"
+    rm -rf "$ROOTFS/opt/piper"
+    mkdir -p "$ROOTFS/opt/piper"
+    tar -xzf "$tarball" -C "$ROOTFS/opt/piper" --strip-components=1
+    printf '#!/bin/sh\nexec /opt/piper/piper "$@"\n' > "$ROOTFS/usr/local/bin/piper"
+    chmod 755 "$ROOTFS/usr/local/bin/piper"
+
+    voice=$(fetch "$VOICE_URL")
+    json=$(fetch "$VOICE_URL.json")
+    install -Dm644 "$voice" "$ROOTFS/usr/share/jungey/voices/en_GB-alan-medium.onnx"
+    install -Dm644 "$json" "$ROOTFS/usr/share/jungey/voices/en_GB-alan-medium.onnx.json"
+
+    vosk=$(fetch "$VOSK_URL")
+    rm -rf "$ROOTFS/usr/share/jungey/vosk" "$WORK/vosk-unpack"
+    mkdir -p "$WORK/vosk-unpack" "$ROOTFS/usr/share/jungey/vosk"
+    unzip -q "$vosk" -d "$WORK/vosk-unpack"
+    mv "$WORK/vosk-unpack/vosk-model-small-en-us-0.15" "$ROOTFS/usr/share/jungey/vosk/small-en-us"
+    rm -rf "$WORK/vosk-unpack"
+    [ -f "$ROOTFS/usr/share/jungey/vosk/small-en-us/graph/Gr.fst" ] || die "the Vosk model has no Gr.fst"
 }
 
 make_squashfs() {

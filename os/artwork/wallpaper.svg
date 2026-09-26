@@ -58,7 +58,7 @@
 
   <!-- a boot line, the way a terminal would print it -->
   <g font-family="JetBrains Mono, DejaVu Sans Mono, monospace" font-size="26" fill="#5ad7ff">
-    <text x="120" y="1280" fill-opacity="0.55">jungey@os:~$ ./ignite --reactor</text>
-    <text x="120" y="1322" fill-opacity="0.32">[ ok ] core online   [ ok ] skills loaded   [ ok ] link established</text>
+    <text x="300" y="1280" fill-opacity="0.55">jungey@os:~$ ./ignite --reactor</text>
+    <text x="300" y="1322" fill-opacity="0.32">[ ok ] core online   [ ok ] skills loaded   [ ok ] link established</text>
   </g>
 </svg>
