@@ -61,6 +61,8 @@ gvfs-fuse
 
 # --- Network, sound, bluetooth ---
 network-manager
+# NetworkManager hands DNS to systemd-resolved, and /etc/resolv.conf points at it.
+systemd-resolved
 network-manager-gnome
 wpasupplicant
 iw
