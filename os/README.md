@@ -10,6 +10,7 @@ disk, and a graphical installer puts it on the machine for good.
 | Base | Ubuntu 24.04 LTS (security updates until 2029), hardware-enablement kernel |
 | Desktop | Xfce 4.18, laid out for development: one top bar with launchers, four workspaces, CPU/memory meters; dark Orchis theme with a teal accent, Papirus icons, Inter and JetBrains Mono fonts |
 | Claude | Claude Desktop (Chat, Cowork, Claude Code; Anthropic's Linux beta) and the `claude` command-line tool, from Anthropic's apt repositories |
+| Jungey's voice | speaks with piper's natural "alan" voice and listens offline with Vosk (say "purple" to wake it), both preinstalled |
 | Developer tools | zsh with a two-line prompt that shows the git branch, autosuggestions and syntax highlighting; git, tmux, Neovim, the Geany IDE, Python venv and pip, jq, tree |
 | Apps | Jungey, GNOME Web browser, Thunar files, Mousepad, Ristretto images, Atril PDF, Parole media, Cheese camera, Synaptic package manager |
 | Installer | Calamares: erase disk, install alongside Windows, or manual partitioning, optional disk encryption |
