@@ -39,7 +39,7 @@ Presentation
             color: "#d8f3ff"
             font.pixelSize: 18
             text: "<b>Welcome to Jungey OS.</b><br/><br/>A light Xfce desktop on Ubuntu 24.04 LTS, "
-                + "with five years of security updates. It is being copied to your disk now."
+                + "with security updates until 2029. It is being copied to your disk now."
         }
     }
 
