@@ -8,10 +8,10 @@ mkdir -p "$xdg"
 stock=/etc/xdg/xfce4/xfconf/xfce-perchannel-xml
 
 # Appearance: start from Ubuntu's Xfce defaults and change only what differs.
-sed -e 's|\("ThemeName" type="string" value="\)[^"]*|\1Greybird-dark|' \
-    -e 's|\("IconThemeName" type="string" value="\)[^"]*|\1elementary-xfce-dark|' \
-    -e 's|\("FontName" type="string" value="\)[^"]*|\1Ubuntu 10|' \
-    -e 's|\("MonospaceFontName" type="string" value="\)[^"]*|\1Ubuntu Mono 11|' \
+sed -e 's|\("ThemeName" type="string" value="\)[^"]*|\1Orchis-Teal-Dark-Compact|' \
+    -e 's|\("IconThemeName" type="string" value="\)[^"]*|\1Papirus-Dark|' \
+    -e 's|\("FontName" type="string" value="\)[^"]*|\1Inter 10|' \
+    -e 's|\("MonospaceFontName" type="string" value="\)[^"]*|\1JetBrains Mono 10|' \
     -e 's|\("CursorThemeName" type="string" value="\)[^"]*|\1DMZ-White|' \
     -e 's|\("CursorThemeSize" type="int" value="\)[^"]*|\124|' \
     -e 's|\("Antialias" type="int" value="\)[^"]*|\11|' \
@@ -19,7 +19,7 @@ sed -e 's|\("ThemeName" type="string" value="\)[^"]*|\1Greybird-dark|' \
     -e 's|\("HintStyle" type="string" value="\)[^"]*|\1hintslight|' \
     -e 's|\("RGBA" type="string" value="\)[^"]*|\1rgb|' \
     "$stock/xsettings.xml" > "$xdg/xsettings.xml"
-grep -q 'Greybird-dark' "$xdg/xsettings.xml"
+grep -q 'Orchis-Teal-Dark-Compact' "$xdg/xsettings.xml"
 
 # Keyboard: the Super key opens the menu, Super+J opens Jungey.
 sed -e '/<property name="commands" type="empty">/,/<\/property>/{

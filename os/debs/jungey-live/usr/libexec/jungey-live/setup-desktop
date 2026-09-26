@@ -17,6 +17,12 @@ if [ ! -e "$keyrings/login.keyring" ]; then
     chmod 600 "$keyrings/login.keyring" "$keyrings/default"
 fi
 
+# The live user gets the same zsh as installed systems (the live user has
+# passwordless sudo; new terminals pick the shell up).
+if [ "$(getent passwd "$USER" | cut -d: -f7)" != /usr/bin/zsh ] && [ -x /usr/bin/zsh ]; then
+    sudo -n chsh -s /usr/bin/zsh "$USER" 2>/dev/null || true
+fi
+
 # Put "Install Jungey OS" and Jungey on the desktop, already trusted, so they
 # start with one double-click instead of an "untrusted launcher" prompt.
 desktop=$(xdg-user-dir DESKTOP 2>/dev/null || echo "$HOME/Desktop")

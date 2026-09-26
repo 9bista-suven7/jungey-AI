@@ -120,10 +120,13 @@ tumbler
 policykit-1-gnome
 gnome-keyring
 libpam-gnome-keyring
-greybird-gtk-theme
-elementary-xfce-icon-theme
+xfce4-systemload-plugin
+orchis-gtk-theme
+papirus-icon-theme
 dmz-cursor-theme
 librsvg2-common
+fonts-inter
+fonts-jetbrains-mono
 fonts-ubuntu
 fonts-dejavu-core
 fonts-liberation2
@@ -141,6 +144,20 @@ xarchiver
 synaptic
 gstreamer1.0-plugins-good
 gstreamer1.0-libav
+
+# --- Developer tools ---
+zsh
+zsh-autosuggestions
+zsh-syntax-highlighting
+git
+tmux
+neovim
+geany
+python3-venv
+python3-pip
+jq
+tree
+neofetch
 
 # --- Jungey's optional helpers (voice, camera, screen reading) ---
 espeak-ng

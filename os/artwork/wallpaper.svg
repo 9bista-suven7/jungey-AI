@@ -1,29 +1,64 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="2560" height="1440" viewBox="0 0 2560 1440">
-  <!-- Jungey OS default wallpaper: the arc reactor from Jungey's icon, faint and
-       off to the right so desktop icons on the left stay readable. -->
+  <!-- Jungey OS default wallpaper: a dark circuit grid with the arc reactor from
+       Jungey's icon, off to the right so desktop icons on the left stay readable. -->
   <defs>
-    <radialGradient id="bg" cx="1720" cy="720" r="1900" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#12304a"/>
-      <stop offset="0.4" stop-color="#0a1825"/>
-      <stop offset="1" stop-color="#03060a"/>
+    <radialGradient id="bg" cx="1780" cy="760" r="2000" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#0d2233"/>
+      <stop offset="0.45" stop-color="#07121c"/>
+      <stop offset="1" stop-color="#020407"/>
     </radialGradient>
-    <radialGradient id="glow" cx="1720" cy="720" r="460" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#9eeaff" stop-opacity="0.60"/>
-      <stop offset="0.22" stop-color="#3cc8f2" stop-opacity="0.24"/>
+    <radialGradient id="glow" cx="1780" cy="760" r="420" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#9eeaff" stop-opacity="0.65"/>
+      <stop offset="0.25" stop-color="#3cc8f2" stop-opacity="0.22"/>
       <stop offset="1" stop-color="#3cc8f2" stop-opacity="0"/>
     </radialGradient>
+    <radialGradient id="fade" cx="1780" cy="760" r="1500" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#fff" stop-opacity="1"/>
+      <stop offset="1" stop-color="#fff" stop-opacity="0"/>
+    </radialGradient>
+    <pattern id="grid" width="64" height="64" patternUnits="userSpaceOnUse">
+      <path d="M64 0H0V64" fill="none" stroke="#5ad7ff" stroke-opacity="0.07" stroke-width="1"/>
+      <circle cx="0" cy="0" r="1.6" fill="#5ad7ff" fill-opacity="0.18"/>
+    </pattern>
+    <mask id="gridmask"><rect width="2560" height="1440" fill="url(#fade)"/></mask>
   </defs>
+
   <rect width="2560" height="1440" fill="url(#bg)"/>
-  <g fill="none" transform="translate(1720 720)">
-    <circle r="640" stroke="#5ad7ff" stroke-opacity="0.05" stroke-width="2"/>
-    <circle r="560" stroke="#5ad7ff" stroke-opacity="0.12" stroke-width="3" stroke-dasharray="3 22"/>
-    <circle r="480" stroke="#5ad7ff" stroke-opacity="0.08" stroke-width="2"/>
-    <circle r="410" stroke="#1f6f8b" stroke-opacity="0.55" stroke-width="18"/>
+  <rect width="2560" height="1440" fill="url(#grid)" mask="url(#gridmask)"/>
+
+  <!-- circuit traces running into the reactor -->
+  <g fill="none" stroke="#5ad7ff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" stroke-opacity="0.28">
+    <path d="M1280 320 H1536 L1600 384 H1700"/>
+    <path d="M1216 1152 H1472 L1600 1024 H1664"/>
+    <path d="M2496 448 H2176 L2112 512 H2000"/>
+    <path d="M2496 1088 H2240 L2112 960 H2016"/>
+    <path d="M1152 704 H1344"/>
+    <path d="M1780 128 V256 L1728 308"/>
+    <path d="M1780 1376 V1248 L1840 1188"/>
+  </g>
+  <g fill="#5ad7ff" fill-opacity="0.55">
+    <circle cx="1280" cy="320" r="5"/><circle cx="1216" cy="1152" r="5"/>
+    <circle cx="2496" cy="448" r="5"/><circle cx="2496" cy="1088" r="5"/>
+    <circle cx="1152" cy="704" r="5"/><circle cx="1780" cy="128" r="5"/>
+    <circle cx="1780" cy="1376" r="5"/>
+  </g>
+
+  <!-- the reactor -->
+  <g fill="none" transform="translate(1780 760)">
+    <circle r="560" stroke="#5ad7ff" stroke-opacity="0.10" stroke-width="3" stroke-dasharray="3 22"/>
+    <circle r="470" stroke="#5ad7ff" stroke-opacity="0.07" stroke-width="2"/>
+    <circle r="400" stroke="#1f6f8b" stroke-opacity="0.60" stroke-width="16"/>
     <!-- ten segments: circumference 2*pi*300 = 1885, so 188.5 per segment -->
-    <circle r="300" stroke="#5ad7ff" stroke-opacity="0.30" stroke-width="72"
+    <circle r="300" stroke="#5ad7ff" stroke-opacity="0.32" stroke-width="72"
             stroke-dasharray="152.5 36" transform="rotate(-81)"/>
-    <circle r="200" stroke="#9eeaff" stroke-opacity="0.40" stroke-width="10"/>
+    <circle r="200" stroke="#9eeaff" stroke-opacity="0.45" stroke-width="10"/>
     <circle r="130" fill="#bff3ff" fill-opacity="0.16"/>
   </g>
-  <circle cx="1720" cy="720" r="460" fill="url(#glow)"/>
+  <circle cx="1780" cy="760" r="420" fill="url(#glow)"/>
+
+  <!-- a boot line, the way a terminal would print it -->
+  <g font-family="JetBrains Mono, DejaVu Sans Mono, monospace" font-size="26" fill="#5ad7ff">
+    <text x="120" y="1280" fill-opacity="0.55">jungey@os:~$ ./ignite --reactor</text>
+    <text x="120" y="1322" fill-opacity="0.32">[ ok ] core online   [ ok ] skills loaded   [ ok ] link established</text>
+  </g>
 </svg>

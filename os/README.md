@@ -8,8 +8,9 @@ disk, and a graphical installer puts it on the machine for good.
 | | |
 |---|---|
 | Base | Ubuntu 24.04 LTS (security updates until 2029), hardware-enablement kernel |
-| Desktop | Xfce 4.18 with LightDM, dark Greybird theme |
+| Desktop | Xfce 4.18, laid out for development: one top bar with launchers, four workspaces, CPU/memory meters; dark Orchis theme with a teal accent, Papirus icons, Inter and JetBrains Mono fonts |
 | Claude | Claude Desktop (Chat, Cowork, Claude Code; Anthropic's Linux beta) and the `claude` command-line tool, from Anthropic's apt repositories |
+| Developer tools | zsh with a two-line prompt that shows the git branch, autosuggestions and syntax highlighting; git, tmux, Neovim, the Geany IDE, Python venv and pip, jq, tree |
 | Apps | Jungey, GNOME Web browser, Thunar files, Mousepad, Ristretto images, Atril PDF, Parole media, Cheese camera, Synaptic package manager |
 | Installer | Calamares: erase disk, install alongside Windows, or manual partitioning, optional disk encryption |
 | Hardware | Wi-Fi and Bluetooth (including Bluetooth headphones), with drivers and firmware for Intel, Realtek, MediaTek, Qualcomm/Atheros and most Broadcom chips; USB webcams, which covers most laptop cameras; Ubuntu's hardware-enablement kernel for recent laptops |
@@ -117,6 +118,22 @@ The firmware's boot list and the GRUB menu (shown only when another system is
 installed) call the entry "Ubuntu". Ubuntu's Secure Boot-signed GRUB only looks
 for its files under that name, so Jungey OS keeps it rather than lose Secure
 Boot.
+
+## Update an installed system
+
+Changes to this repository (a new look, new packages) reach an installed Jungey
+OS without reinstalling. From a clone of the repository:
+
+```bash
+git clone -b claude/gallant-lovelace-323bwn https://github.com/9bista-suven7/jungey-AI.git
+cd jungey-AI
+sudo ./os/tools/apply-look.sh
+```
+
+It installs any missing packages, refreshes the theme, panel, terminal,
+wallpaper and zsh setup, and switches your account to zsh. Your own desktop
+settings are backed up to `~/.config/jungey-look-backup-*` first. Log out and
+back in afterwards.
 
 ## Try it in a virtual machine first
 
