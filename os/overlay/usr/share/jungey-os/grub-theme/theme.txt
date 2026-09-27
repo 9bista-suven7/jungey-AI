@@ -5,7 +5,15 @@ title-text: ""
 desktop-image: "background.png"
 desktop-image-scale-method: "crop"
 desktop-color: "#050b12"
-terminal-font: "Inter Regular 16"
+# The text screen (command line, boot messages) covers the whole screen in
+# GRUB's own font (unicode.pf2): a sized box in a theme font hangs BIOS
+# GRUB at 640x480.
+terminal-font: "Unifont Regular 16"
+terminal-left: "0"
+terminal-top: "0"
+terminal-width: "100%"
+terminal-height: "100%"
+terminal-border: "0"
 
 + label {
     left = 8%

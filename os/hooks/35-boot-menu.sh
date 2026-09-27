@@ -38,3 +38,5 @@ printf '%s\n' "$entries" | sed \
         }"
 WRAPPER
 chmod 755 /etc/grub.d/10_linux
+# On a ZFS root it looks for its ZFS sibling next to itself.
+ln -sf /etc/grub.d/10_linux_zfs "$(dirname "$distro")/10_linux_zfs"
