@@ -38,7 +38,7 @@ say "Building Jungey"
 say "Adding the jungey command, menu entry and icon"
 # A launcher of your own, ahead of the system's in PATH: one installed before this
 # version always opens the jar that came with the system, however new yours is.
-install -Dm755 "$repo/os/debs/jungey/usr/bin/jungey" "$bin/jungey"
+install -Dm755 "$repo/packaging/jungey" "$bin/jungey"
 launcher="$bin/jungey"
 for size in 16 32 48 128 256; do
   install -Dm644 "$repo/src/main/resources/icons/jungey-$size.png" \
@@ -46,7 +46,7 @@ for size in 16 32 48 128 256; do
 done
 # Same name as the system's entry, so the menu shows this one in its place.
 mkdir -p "$data/applications"
-sed "s|^Exec=jungey|Exec=$launcher|" "$repo/os/debs/jungey/usr/share/applications/jungey.desktop" \
+sed "s|^Exec=jungey|Exec=$launcher|" "$repo/packaging/jungey.desktop" \
   > "$data/applications/jungey.desktop"
 command -v update-desktop-database >/dev/null && update-desktop-database -q "$data/applications" || true
 command -v gtk-update-icon-cache >/dev/null && gtk-update-icon-cache -q -t "$data/icons/hicolor" || true
@@ -57,7 +57,7 @@ if $autostart; then
   else
     say "Starting Jungey at login"
     mkdir -p "$config/autostart"
-    sed "s|^Exec=jungey|Exec=$launcher|" "$repo/os/debs/jungey/etc/xdg/autostart/jungey.desktop" \
+    sed "s|^Exec=jungey|Exec=$launcher|" "$repo/packaging/jungey-autostart.desktop" \
       > "$config/autostart/jungey.desktop"
   fi
 elif [ -f /etc/xdg/autostart/jungey.desktop ]; then
