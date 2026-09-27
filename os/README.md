@@ -8,7 +8,8 @@ disk, and a graphical installer puts it on the machine for good.
 | | |
 |---|---|
 | Base | Ubuntu 24.04 LTS (security updates until 2029), hardware-enablement kernel |
-| Desktop | Xfce 4.18, laid out for development: one top bar with launchers, four workspaces, CPU/memory meters; dark Orchis theme with a teal accent, Papirus icons, Inter and JetBrains Mono fonts |
+| Desktop | Xfce 4.18, laid out for development: one top bar with launchers, four workspaces, CPU/memory meters; Papirus icons, Inter and JetBrains Mono fonts |
+| The Jungey look | its own theme, **Jungey**: navy and the arc reactor's cyan, a glass top bar with a cyan edge, matching menu, windows and notifications; a Jungey login and lock screen; the reactor turning over as the boot splash; a Jungey boot menu whose entries say Jungey OS; `neofetch` with the reactor as its logo |
 | Claude | Claude Desktop (Chat, Cowork, Claude Code; Anthropic's Linux beta) and the `claude` command-line tool, from Anthropic's apt repositories |
 | Jungey's voice | speaks with piper's natural "alan" voice and listens offline with Vosk (say "purple" to wake it), both preinstalled |
 | Developer tools | zsh with a two-line prompt that shows the git branch, autosuggestions and syntax highlighting; git, tmux, Neovim, the Geany IDE, Python venv and pip, jq, tree |
@@ -130,15 +131,16 @@ Changes to this repository (a new look, new packages) reach an installed Jungey
 OS without reinstalling. From a clone of the repository:
 
 ```bash
-git clone -b claude/gallant-lovelace-323bwn https://github.com/9bista-suven7/jungey-AI.git
+git clone https://github.com/9bista-suven7/jungey-AI.git
 cd jungey-AI
 sudo ./os/tools/apply-look.sh
 ```
 
-It installs any missing packages, refreshes the theme, panel, terminal,
-wallpaper and zsh setup and the Jungey launcher, and switches your account to zsh. Your own desktop
-settings are backed up to `~/.config/jungey-look-backup-*` first. Log out and
-back in afterwards.
+It installs any missing packages, refreshes the Jungey theme, panel, terminal,
+wallpaper, login screen, boot splash, boot menu, zsh setup and the Jungey
+launcher, and switches your account to zsh. Your own desktop settings are backed
+up to `~/.config/jungey-look-backup-*` first. Log out and back in to see the
+desktop; the boot splash and boot menu show from the next restart.
 
 ## Try it in a virtual machine first
 

@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1920" height="1080" viewBox="0 0 1920 1080">
+  <!-- The boot menu's background: the wallpaper's night and reactor, pushed right so
+       the menu has the left half, and the name above where the menu sits. -->
+  <defs>
+    <radialGradient id="bg" cx="1440" cy="560" r="1500" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#0d2233"/>
+      <stop offset="0.45" stop-color="#07121c"/>
+      <stop offset="1" stop-color="#020407"/>
+    </radialGradient>
+    <radialGradient id="glow" cx="1440" cy="560" r="330" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#9eeaff" stop-opacity="0.55"/>
+      <stop offset="0.3" stop-color="#3cc8f2" stop-opacity="0.18"/>
+      <stop offset="1" stop-color="#3cc8f2" stop-opacity="0"/>
+    </radialGradient>
+    <pattern id="grid" width="48" height="48" patternUnits="userSpaceOnUse">
+      <path d="M48 0H0V48" fill="none" stroke="#5ad7ff" stroke-opacity="0.06" stroke-width="1"/>
+    </pattern>
+  </defs>
+  <rect width="1920" height="1080" fill="url(#bg)"/>
+  <rect width="1920" height="1080" fill="url(#grid)"/>
+  <g fill="none" transform="translate(1440 560)">
+    <circle r="420" stroke="#5ad7ff" stroke-opacity="0.10" stroke-width="3" stroke-dasharray="3 18"/>
+    <circle r="300" stroke="#1f6f8b" stroke-opacity="0.55" stroke-width="12"/>
+    <circle r="225" stroke="#5ad7ff" stroke-opacity="0.30" stroke-width="54"
+            stroke-dasharray="114.4 27" transform="rotate(-81)"/>
+    <circle r="150" stroke="#9eeaff" stroke-opacity="0.40" stroke-width="8"/>
+    <circle r="98" fill="#bff3ff" fill-opacity="0.14"/>
+  </g>
+  <circle cx="1440" cy="560" r="330" fill="url(#glow)"/>
+  <text x="150" y="250" fill="#d8f6ff" font-family="Inter, DejaVu Sans, sans-serif" font-size="58"
+        font-weight="700" letter-spacing="18">JUNGEY OS</text>
+  <rect x="152" y="276" width="96" height="3" fill="#3cc8f2"/>
+</svg>

@@ -1,0 +1,211 @@
+#!/usr/bin/env python3
+"""Build the Jungey desktop theme from Orchis.
+
+Copies Orchis-Teal-Dark-Compact to /usr/share/themes/Jungey and recolours it the
+way Jungey's wallpaper is coloured: its neutral greys become the navy of the
+reactor's night, and its teal accent becomes the reactor's cyan. CSS, SVG, XPM
+and themerc files are recoloured as text; the window-border PNGs are decoded,
+recoloured pixel by pixel and written back, with nothing but the standard
+library. Jungey's own styling for the panel, menu, login screen and
+notifications then goes on top, from /usr/lib/jungey-os/theme.
+
+Rerun it after the Orchis package updates:  sudo /usr/lib/jungey-os/make-gtk-theme
+"""
+import colorsys
+import re
+import shutil
+import struct
+import sys
+import zlib
+from pathlib import Path
+
+SOURCE = Path("/usr/share/themes/Orchis-Teal-Dark-Compact")
+TARGET = Path("/usr/share/themes/Jungey")
+EXTRAS = Path("/usr/lib/jungey-os/theme")
+
+# Only what an Xfce desktop reads; the GNOME Shell and Cinnamon parts would be dead weight.
+KEEP = ["gtk-2.0", "gtk-3.0", "gtk-4.0", "xfwm4", "metacity-1"]
+
+
+def navy(v):
+    """A neutral grey level, moved onto the navy ramp of the wallpaper."""
+    return (v * 0.62, v * 0.86 + 4, v * 1.08 + 10)
+
+
+def recolour(r, g, b):
+    """One colour, 0-255 per channel, in Jungey's palette."""
+    hi, lo = max(r, g, b), min(r, g, b)
+    if hi - lo < 14:
+        # Grey: dark ones turn navy, light ones (text) fade back to themselves.
+        v = (r + g + b) / 3
+        if v >= 170:
+            return r, g, b
+        n = navy(v)
+        t = 0.0 if v <= 110 else (v - 110) / 60
+        out = tuple(n[i] * (1 - t) + (r, g, b)[i] * t for i in range(3))
+    else:
+        h, l, s = colorsys.rgb_to_hls(r / 255, g / 255, b / 255)
+        if 0.40 <= h <= 0.53 and s > 0.2:
+            # Orchis's teal becomes the reactor's cyan (#3cc8f2 at full strength).
+            h, s, l = 195 / 360, min(0.87, max(s, s * 2)), min(0.85, l + 0.06)
+            out = tuple(c * 255 for c in colorsys.hls_to_rgb(h, l, s))
+        else:
+            return r, g, b   # warnings, errors: leave their meaning alone
+    return tuple(max(0, min(255, round(c))) for c in out)
+
+
+HEX = re.compile(r"#([0-9a-fA-F]{6})\b")
+RGBA = re.compile(r"rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*([,)])")
+
+
+def recolour_text(text):
+    def hexsub(m):
+        v = m.group(1)
+        r, g, b = recolour(int(v[0:2], 16), int(v[2:4], 16), int(v[4:6], 16))
+        return "#%02x%02x%02x" % (r, g, b)
+
+    def rgbasub(m):
+        full = m.group(0)
+        r, g, b = recolour(int(m.group(1)), int(m.group(2)), int(m.group(3)))
+        head = full[:full.index("(") + 1]
+        return "%s%d, %d, %d%s" % (head, r, g, b, m.group(4))
+
+    return RGBA.sub(rgbasub, HEX.sub(hexsub, text))
+
+
+# ------------------------------------------------------------------ PNG
+
+def _unfilter(data, width, height, bpp):
+    stride = width * bpp
+    out = bytearray(height * stride)
+    prev = bytearray(stride)
+    pos = 0
+    for y in range(height):
+        ftype = data[pos]
+        line = bytearray(data[pos + 1:pos + 1 + stride])
+        pos += 1 + stride
+        for i in range(stride):
+            a = line[i - bpp] if i >= bpp else 0
+            b = prev[i]
+            c = prev[i - bpp] if i >= bpp else 0
+            if ftype == 1:
+                line[i] = (line[i] + a) & 0xFF
+            elif ftype == 2:
+                line[i] = (line[i] + b) & 0xFF
+            elif ftype == 3:
+                line[i] = (line[i] + ((a + b) >> 1)) & 0xFF
+            elif ftype == 4:
+                p = a + b - c
+                pa, pb, pc = abs(p - a), abs(p - b), abs(p - c)
+                pred = a if pa <= pb and pa <= pc else (b if pb <= pc else c)
+                line[i] = (line[i] + pred) & 0xFF
+        out[y * stride:(y + 1) * stride] = line
+        prev = line
+    return out
+
+
+def _chunk(kind, body):
+    return (struct.pack(">I", len(body)) + kind + body
+            + struct.pack(">I", zlib.crc32(kind + body) & 0xFFFFFFFF))
+
+
+def recolour_png(path):
+    raw = path.read_bytes()
+    if raw[:8] != b"\x89PNG\r\n\x1a\n":
+        return
+    pos, chunks = 8, []
+    while pos < len(raw):
+        length, kind = struct.unpack(">I4s", raw[pos:pos + 8])
+        chunks.append((kind, raw[pos + 8:pos + 8 + length]))
+        pos += 12 + length
+    header = dict(chunks)[b"IHDR"]
+    width, height, depth, ctype, _, _, interlace = struct.unpack(">IIBBBBB", header)
+    if depth != 8 or interlace:
+        return   # none of Orchis's images are like this; leave any that are
+
+    cache = {}
+
+    def mapped(rgb):
+        if rgb not in cache:
+            cache[rgb] = recolour(*rgb)
+        return cache[rgb]
+
+    if ctype == 3:   # palette: recolour the palette alone
+        plte = bytearray(dict(chunks)[b"PLTE"])
+        for i in range(0, len(plte), 3):
+            plte[i:i + 3] = bytes(mapped(tuple(plte[i:i + 3])))
+        chunks = [(k, bytes(plte) if k == b"PLTE" else v) for k, v in chunks]
+    elif ctype in (0, 2, 4, 6):
+        bpp = {0: 1, 2: 3, 4: 2, 6: 4}[ctype]
+        data = zlib.decompress(b"".join(v for k, v in chunks if k == b"IDAT"))
+        pixels = _unfilter(data, width, height, bpp)
+        # Greyscale has no room for navy, so it comes out as colour.
+        out_bpp = 4 if ctype in (4, 6) else 3
+        rows = bytearray()
+        for y in range(height):
+            rows.append(0)
+            base = y * width * bpp
+            for x in range(width):
+                p = pixels[base + x * bpp:base + (x + 1) * bpp]
+                rgb = (p[0], p[0], p[0]) if ctype in (0, 4) else (p[0], p[1], p[2])
+                rows.extend(mapped(rgb))
+                if out_bpp == 4:
+                    rows.append(p[-1])
+        header = struct.pack(">IIBBBBB", width, height, 8, 6 if out_bpp == 4 else 2, 0, 0, 0)
+        chunks = ([(b"IHDR", header)]
+                  + [(k, v) for k, v in chunks if k not in (b"IHDR", b"IDAT", b"IEND")
+                     and k not in (b"tRNS", b"sBIT", b"bKGD")]
+                  + [(b"IDAT", zlib.compress(bytes(rows), 9)), (b"IEND", b"")])
+    else:
+        return
+    path.write_bytes(b"\x89PNG\r\n\x1a\n" + b"".join(_chunk(k, v) for k, v in chunks))
+
+
+# ------------------------------------------------------------------ build
+
+def main():
+    if not SOURCE.is_dir():
+        sys.exit("make-gtk-theme: %s is missing - install orchis-gtk-theme" % SOURCE)
+
+    staging = TARGET.with_name(TARGET.name + ".new")
+    shutil.rmtree(staging, ignore_errors=True)
+    staging.mkdir(parents=True)
+    for part in KEEP:
+        if (SOURCE / part).exists():
+            shutil.copytree(SOURCE / part, staging / part, symlinks=True)
+
+    for f in staging.rglob("*"):
+        if f.is_symlink() or not f.is_file():
+            continue
+        if f.suffix in (".css", ".svg", ".xpm", ".rc") or f.name in ("themerc", "gtkrc"):
+            f.write_text(recolour_text(f.read_text(errors="surrogateescape")),
+                         errors="surrogateescape")
+        elif f.suffix == ".png":
+            recolour_png(f)
+
+    # Jungey's own layer on top of the recoloured base.
+    for css in ("gtk.css", "gtk-dark.css"):
+        target = staging / "gtk-3.0" / css
+        if target.exists():
+            target.write_text(target.read_text() + "\n" + (EXTRAS / "gtk-3.0.css").read_text())
+    themerc = staging / "xfwm4" / "themerc"
+    if themerc.exists():
+        text = re.sub(r"(?m)^active_text_color=.*$", "active_text_color=#d8f6ff", themerc.read_text())
+        themerc.write_text(text)
+    notify = staging / "xfce-notify-4.0"
+    notify.mkdir()
+    shutil.copy(EXTRAS / "xfce-notify.css", notify / "gtk.css")
+
+    (staging / "index.theme").write_text(
+        "[Desktop Entry]\nType=X-GNOME-Metatheme\nName=Jungey\n"
+        "Comment=Jungey OS: navy and reactor cyan, built on Orchis\nEncoding=UTF-8\n\n"
+        "[X-GNOME-Metatheme]\nGtkTheme=Jungey\nMetacityTheme=Jungey\n"
+        "IconTheme=Papirus-Dark\nCursorTheme=DMZ-White\nButtonLayout=:minimize,maximize,close\n")
+
+    shutil.rmtree(TARGET, ignore_errors=True)
+    staging.rename(TARGET)
+    print("make-gtk-theme: wrote %s" % TARGET)
+
+
+if __name__ == "__main__":
+    main()

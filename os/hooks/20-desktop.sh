@@ -8,7 +8,7 @@ mkdir -p "$xdg"
 stock=/etc/xdg/xfce4/xfconf/xfce-perchannel-xml
 
 # Appearance: start from Ubuntu's Xfce defaults and change only what differs.
-sed -e 's|\("ThemeName" type="string" value="\)[^"]*|\1Orchis-Teal-Dark-Compact|' \
+sed -e 's|\("ThemeName" type="string" value="\)[^"]*|\1Jungey|' \
     -e 's|\("IconThemeName" type="string" value="\)[^"]*|\1Papirus-Dark|' \
     -e 's|\("FontName" type="string" value="\)[^"]*|\1Inter 10|' \
     -e 's|\("MonospaceFontName" type="string" value="\)[^"]*|\1JetBrains Mono 10|' \
@@ -19,7 +19,7 @@ sed -e 's|\("ThemeName" type="string" value="\)[^"]*|\1Orchis-Teal-Dark-Compact|
     -e 's|\("HintStyle" type="string" value="\)[^"]*|\1hintslight|' \
     -e 's|\("RGBA" type="string" value="\)[^"]*|\1rgb|' \
     "$stock/xsettings.xml" > "$xdg/xsettings.xml"
-grep -q 'Orchis-Teal-Dark-Compact' "$xdg/xsettings.xml"
+grep -q '"ThemeName" type="string" value="Jungey"' "$xdg/xsettings.xml"
 
 # Keyboard: the Super key opens the menu, Super+J opens Jungey.
 sed -e '/<property name="commands" type="empty">/,/<\/property>/{

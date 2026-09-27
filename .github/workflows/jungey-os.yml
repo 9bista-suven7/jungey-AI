@@ -45,7 +45,8 @@ jobs:
       - name: Install image tools
         run: |
           sudo apt-get update
-          sudo apt-get install -y debootstrap squashfs-tools xorriso mtools dosfstools librsvg2-bin rsync
+          sudo apt-get install -y debootstrap squashfs-tools xorriso mtools dosfstools librsvg2-bin rsync \
+            fonts-inter fonts-jetbrains-mono
 
       - name: Build Jungey
         run: mvn -B -q -DskipTests package

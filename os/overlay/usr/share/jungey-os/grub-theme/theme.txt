@@ -1,0 +1,48 @@
+# Jungey OS boot menu. The images and fonts beside this file come from
+# install-artwork.sh and hooks/35-boot-menu.sh.
+
+title-text: ""
+desktop-image: "background.png"
+desktop-image-scale-method: "crop"
+desktop-color: "#050b12"
+terminal-font: "Inter Regular 16"
+
++ boot_menu {
+    left = 8%
+    top = 32%
+    width = 44%
+    height = 46%
+    item_font = "Inter Regular 20"
+    item_color = "#9fb7c6"
+    selected_item_font = "Inter Regular 20"
+    selected_item_color = "#ffffff"
+    selected_item_pixmap_style = "select_*.png"
+    icon_width = 32
+    icon_height = 32
+    item_icon_space = 18
+    item_height = 48
+    item_padding = 14
+    item_spacing = 6
+    scrollbar = false
+}
+
++ label {
+    left = 8%
+    top = 81%
+    width = 44%
+    height = 30
+    id = "__timeout__"
+    text = "Starting the highlighted system in %d seconds"
+    font = "Inter Regular 16"
+    color = "#5ad7ff"
+}
+
++ label {
+    left = 8%
+    top = 92%
+    width = 84%
+    height = 24
+    text = "Arrow keys to choose  ·  Enter to start  ·  E to edit  ·  C for a command line"
+    font = "Inter Regular 16"
+    color = "#4f6b7d"
+}
