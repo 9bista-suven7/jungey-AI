@@ -26,8 +26,10 @@ import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.Scene;
 import javafx.scene.control.Label;
+import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
 import javafx.scene.input.KeyCode;
+import javafx.scene.input.KeyEvent;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
@@ -93,7 +95,7 @@ public class JungeyApp extends Application implements dev.suven.jungey.core.View
             brain.interrupt();
             Platform.runLater(() -> cutIn = true);
         });
-        statusBar = new StatusBar(speaker::statusLabel, this::earsLabel);
+        statusBar = new StatusBar(speaker::statusLabel, this::earsLabel, this::toggleVoice, this::toggleEars);
 
         BorderPane root = new BorderPane();
         root.getStyleClass().add("root-pane");
@@ -109,6 +111,17 @@ public class JungeyApp extends Application implements dev.suven.jungey.core.View
         // Esc from anywhere returns focus to the prompt.
         scene.setOnKeyPressed(e -> {
             if (e.getCode() == KeyCode.ESCAPE) input.requestFocus();
+        });
+        // Clicking into the transcript to copy something leaves the focus there; typing
+        // afterwards goes to the prompt, as it would have before.
+        scene.addEventFilter(KeyEvent.KEY_TYPED, e -> {
+            if (input.isFocused() || e.isShortcutDown() || e.isAltDown()) return;
+            String typed = e.getCharacter();
+            if (typed.isEmpty() || Character.isISOControl(typed.charAt(0))) return;
+            if (!(scene.getFocusOwner() instanceof TextArea line) || !line.getStyleClass().contains("selectable")) return;
+            e.consume();
+            input.requestFocus();
+            input.appendText(typed);
         });
 
         stage.initStyle(StageStyle.TRANSPARENT);
@@ -196,9 +209,34 @@ public class JungeyApp extends Application implements dev.suven.jungey.core.View
         listener.start();
     }
 
+    /** The MIC switch in the status bar: on or off now, and remembered for next time. */
+    private void toggleEars() {
+        boolean on = !listener.on();
+        Config cfg = Config.get();
+        cfg.set("voice.input.enabled", String.valueOf(on));
+        cfg.save();
+        if (on) {
+            earsAnnounced = false;
+            startEars();
+        } else {
+            listener.stop();
+            console.addSystem("Microphone off.");
+        }
+    }
+
+    /** The VOICE switch: speak replies aloud, or only show them. */
+    private void toggleVoice() {
+        if (!speaker.available()) {
+            console.addSystem("No voice to turn on - scripts/setup-voice.sh installs one.");
+            return;
+        }
+        speaker.setMuted(!speaker.muted());
+        console.addSystem(speaker.muted() ? "Voice off." : "Voice on.");
+    }
+
     private String earsLabel() {
         return switch (listener.state()) {
-            case OFF -> "off";
+            case OFF -> listener.on() ? "loading" : "off";
             case WAITING -> "wake";
             case LISTENING -> listener.conversing() ? "talk" : "live";
         };

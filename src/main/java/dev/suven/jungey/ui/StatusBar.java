@@ -6,7 +6,10 @@ import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
+import javafx.css.PseudoClass;
 import javafx.scene.control.Label;
+import javafx.scene.control.Tooltip;
+import javafx.scene.input.MouseButton;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
@@ -17,8 +20,13 @@ import java.time.format.DateTimeFormatter;
 import java.util.Locale;
 import java.util.function.Supplier;
 
-/** Always-on vitals along the bottom edge: clock, CPU, memory, battery. */
+/**
+ * Always-on vitals along the bottom edge: clock, CPU, memory, battery - and the microphone
+ * and voice, which are switches: click either to turn it on or off.
+ */
 public class StatusBar extends HBox {
+
+    private static final PseudoClass ON = PseudoClass.getPseudoClass("on");
 
     private static final DateTimeFormatter CLOCK =
             DateTimeFormatter.ofPattern("HH:mm:ss", Locale.ENGLISH);
@@ -34,9 +42,12 @@ public class StatusBar extends HBox {
     private final Supplier<String> voiceLabel;
     private final Supplier<String> earsLabel;
 
-    public StatusBar(Supplier<String> voiceLabel, Supplier<String> earsLabel) {
+    public StatusBar(Supplier<String> voiceLabel, Supplier<String> earsLabel,
+                     Runnable toggleVoice, Runnable toggleEars) {
         this.voiceLabel = voiceLabel;
         this.earsLabel = earsLabel;
+        switchable(voice, toggleVoice, "Click to turn Jungey's voice on or off");
+        switchable(ears, toggleEars, "Click to turn the microphone on or off");
         setSpacing(0);
         setAlignment(Pos.CENTER_LEFT);
         setPadding(new Insets(7, 16, 7, 16));
@@ -63,8 +74,11 @@ public class StatusBar extends HBox {
 
     private void refresh() {
         clock.setText(LocalTime.now().format(CLOCK));
-        voice.setText("VOICE " + voiceLabel.get().toUpperCase(Locale.ENGLISH));
-        ears.setText("MIC " + earsLabel.get().toUpperCase(Locale.ENGLISH));
+        String speech = voiceLabel.get(), hearing = earsLabel.get();
+        voice.setText("VOICE " + speech.toUpperCase(Locale.ENGLISH));
+        ears.setText("MIC " + hearing.toUpperCase(Locale.ENGLISH));
+        voice.pseudoClassStateChanged(ON, !speech.equals("off"));
+        ears.pseudoClassStateChanged(ON, !hearing.equals("off"));
         cpu.setText(String.format("CPU %3.0f%%", SysInfo.cpuPercent()));
 
         long[] m = SysInfo.memory();
@@ -80,6 +94,16 @@ public class StatusBar extends HBox {
                 battery.getStyleClass().add("status-warn");
             }
         }
+    }
+
+    private void switchable(Label cell, Runnable toggle, String tip) {
+        cell.getStyleClass().add("status-switch");
+        cell.setTooltip(new Tooltip(tip));
+        cell.setOnMouseClicked(e -> {
+            if (e.getButton() != MouseButton.PRIMARY) return;
+            toggle.run();
+            refresh();
+        });
     }
 
     private static Label cell() {
