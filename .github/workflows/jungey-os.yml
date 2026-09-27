@@ -18,8 +18,10 @@ on:
 permissions:
   contents: write
 
+# One build at a time across all branches: every build publishes the same rolling release,
+# and two publishing at once delete each other's upload. The newest push wins.
 concurrency:
-  group: jungey-os-${{ github.ref }}
+  group: jungey-os
   cancel-in-progress: true
 
 jobs:
