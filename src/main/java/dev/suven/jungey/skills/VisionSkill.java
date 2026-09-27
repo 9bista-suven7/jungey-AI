@@ -178,6 +178,8 @@ public class VisionSkill implements Skill {
         // Not the chat model's all-day hold: vision is asked for now and then, and ~2 GB
         // held for a question an hour ago is memory the rest of the machine could use.
         body.put("keep_alive", cfg.str("llm.visionKeepAlive", "60m"));
+        // The chat model can see too, and reasons first unless told not to - see LlmSkill.
+        body.put("think", false);
 
         ObjectNode message = body.putArray("messages").addObject();
         message.put("role", "user");
