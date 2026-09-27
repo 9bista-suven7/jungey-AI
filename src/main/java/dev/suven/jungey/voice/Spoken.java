@@ -23,6 +23,13 @@ final class Spoken {
     private static final Pattern DEGREES = Pattern.compile("(-?\\d+(?:\\.\\d+)?)\\s?°\\s?([CF])?");
     private static final Pattern TABLE_RULE = Pattern.compile("^[\\s|:+-]{4,}$");
 
+    /**
+     * Its own name: a J as in "jungle", then "gey" rhyming with "day". Left to itself
+     * the voice's dictionary takes "Jung" for the psychologist, said "Yoong", which leaves
+     * Jungey without its J.
+     */
+    private static final Pattern NAME = Pattern.compile("(?i)\\bjungey\\b");
+
     /** Everything a screen needs and a voice does not. */
     private static final Pattern DECORATION = Pattern.compile("[\\[\\]{}#*_`|•·→←—–]");
 
@@ -49,6 +56,7 @@ final class Spoken {
                 .replaceAll("\\bm/s\\b", "metres per second");
 
         s = URL.matcher(s).replaceAll("a link");
+        s = NAME.matcher(s).replaceAll("Jun-ghay");
         s = PATH.matcher(s).replaceAll(Spoken::lastPathSegment);
         s = DEGREES.matcher(s).replaceAll(m -> m.group(1) + " degrees"
                 + (m.group(2) == null ? "" : m.group(2).equals("C") ? " celsius" : " fahrenheit"));

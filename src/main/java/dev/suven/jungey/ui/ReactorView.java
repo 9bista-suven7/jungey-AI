@@ -1,6 +1,7 @@
 package dev.suven.jungey.ui;
 
 import javafx.animation.AnimationTimer;
+import javafx.scene.Node;
 import javafx.scene.canvas.Canvas;
 import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.effect.BlurType;
@@ -19,9 +20,7 @@ import javafx.scene.shape.ArcType;
  * whole assembly red. Everything is drawn on one canvas from a single animation timer,
  * so it costs one repaint per frame rather than a tree of animated nodes.
  */
-public class ReactorView extends Canvas {
-
-    public enum State {IDLE, THINKING, SPEAKING, ERROR}
+public class ReactorView extends Canvas implements Avatar {
 
     private static final Color CYAN = Color.web("#38e8ff");
     private static final Color DEEP = Color.web("#0a6f8a");
@@ -61,17 +60,25 @@ public class ReactorView extends Canvas {
         };
     }
 
+    @Override
     public void start() {
         timer.start();
     }
 
+    @Override
     public void stop() {
         timer.stop();
         lastFrame = 0;
     }
 
+    @Override
     public void setState(State next) {
         this.state = next;
+    }
+
+    @Override
+    public Node node() {
+        return this;
     }
 
     private void step(double dt) {

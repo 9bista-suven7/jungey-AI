@@ -58,6 +58,9 @@ final class AudioOut {
     private volatile SourceDataLine line;
     private volatile Process player;
 
+    /** What is being said, measured for the face to move its lips by. */
+    final VoiceMeter meter = new VoiceMeter();
+
     private final Object device = new Object();
     private SourceDataLine held;        // guarded by device
     private AudioFormat heldFormat;     // guarded by device
@@ -107,6 +110,9 @@ final class AudioOut {
         line = out;
         try {
             out.start();
+            // The line outlives the clip, so what this clip has had heard is counted from here.
+            long start = out.getLongFramePosition();
+            meter.begin(format, () -> out.getLongFramePosition() - start);
             int frame = Math.max(1, format.getFrameSize());
             byte[] slice = new byte[Math.max(frame, (int) (format.getSampleRate() * SLICE_MS / 1000) * frame)];
             int read;
@@ -116,6 +122,7 @@ final class AudioOut {
                     if (fade) trailOff(in, out, format, slice, read);
                     return;
                 }
+                meter.feed(slice, read);
                 out.write(slice, 0, read);
             }
             if (mine == generation) out.drain();
@@ -125,6 +132,7 @@ final class AudioOut {
             discard(out);
             throw e;
         } finally {
+            meter.end();
             line = null;
             out.stop();
             out.flush();
@@ -233,11 +241,15 @@ final class AudioOut {
                 .redirectError(ProcessBuilder.Redirect.DISCARD)
                 .start();
         player = p;
+        // A player gives no position back; it plays in real time from about when it starts.
+        long started = System.nanoTime();
+        meter.begin(format, () -> (long) ((System.nanoTime() - started) / 1e9 * rate));
         try (OutputStream sink = p.getOutputStream()) {
             byte[] buffer = new byte[4096];
             int read;
             while ((read = in.read(buffer)) > 0) {
                 if (mine != generation) return;
+                meter.feed(buffer, read);
                 sink.write(buffer, 0, read);
             }
         } catch (IOException e) {
@@ -248,6 +260,7 @@ final class AudioOut {
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
             }
+            meter.end();
             player = null;
         }
     }

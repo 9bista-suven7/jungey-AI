@@ -20,6 +20,7 @@ import java.util.ArrayList;
 import java.util.Deque;
 import java.util.List;
 import java.util.Locale;
+import java.util.Set;
 import java.util.function.Consumer;
 
 /**
@@ -73,6 +74,34 @@ public final class Listener {
     /** Nobody issues a twenty-second command; past this the clip is closed and sent as is. */
     private static final int MAX_CAPTURE_BYTES = BYTES_PER_SECOND * 15;
 
+    /**
+     * How long after Jungey stops talking the microphone still counts it as talking. The
+     * sound server plays on for a moment after Java has handed the audio over, and the room
+     * rings a little longer; heard as a command, that tail is Jungey answering its own last
+     * word - "sir" - and then its own answer to that.
+     */
+    private static final long ECHO_TAIL_MS = 700;
+
+    /**
+     * Below this average confidence, what Vosk heard in a window Jungey opened itself is
+     * taken for noise. A fan or a cough comes out as a word or two it is unsure of; a
+     * sentence someone meant is heard with far more certainty than this.
+     */
+    private static final double MIN_CONFIDENCE = 0.55;
+
+    /**
+     * How many chunks of audio in a row (128 ms each) a partial result must hold the name
+     * before it counts. Partials flicker: for a chunk or two almost anything is "purple" -
+     * Jungey's own voice is, in two sentences out of five - while the name really said
+     * stays put until it is final.
+     */
+    private static final int NAME_HELD_CHUNKS = 3;
+
+    /** Words a recogniser makes out of noise - on their own they are never a command. */
+    private static final Set<String> NOISE = Set.of(
+            "the", "a", "an", "uh", "um", "huh", "hmm", "mm", "oh", "ah", "eh", "and", "but",
+            "so", "i", "it", "sir", "her", "him", "he", "she", "you", "of", "to", "in", "is");
+
     public enum State {OFF, WAITING, LISTENING}
 
     private final Speaker speaker;
@@ -102,6 +131,9 @@ public final class Listener {
     /** Called when the name cuts in while Jungey is talking. */
     private volatile Runnable onBargeIn = () -> { };
 
+    /** Chunks in a row the wake recogniser's partial result has held the name. */
+    private int nameHeld;
+
     /** The last couple of seconds of microphone audio, oldest first. */
     private final Deque<byte[]> preroll = new ArrayDeque<>();
     private int prerollBytes;
@@ -118,15 +150,23 @@ public final class Listener {
         this.onState = onState;
     }
 
-    /** Where the unpacked Vosk model lives. */
+    /**
+     * Where the unpacked Vosk model lives. Without the large one, the small model kept for
+     * the wake word hears commands too - less well, but with the microphone on rather than off.
+     */
     public static Path modelPath() {
-        return Path.of(Config.get().str("voice.input.model",
+        Path main = Path.of(Config.get().str("voice.input.model",
                 System.getProperty("user.home") + "/.local/share/vosk/model"));
+        return !usable(main) && usable(wakeModelPath()) ? wakeModelPath() : main;
     }
 
     public static boolean modelInstalled() {
-        // Vosk needs the whole unpacked directory; "am" is always part of a usable model.
-        return Files.isDirectory(modelPath()) && Files.isDirectory(modelPath().resolve("am"));
+        return usable(modelPath());
+    }
+
+    /** Vosk needs the whole unpacked directory; "am" is always part of a usable model. */
+    private static boolean usable(Path model) {
+        return Files.isDirectory(model.resolve("am"));
     }
 
     public static boolean micPresent() {
@@ -139,6 +179,11 @@ public final class Listener {
 
     public State state() {
         return state;
+    }
+
+    /** True from {@link #start} until {@link #stop}, the models still loading included. */
+    public boolean on() {
+        return running;
     }
 
     /**
@@ -219,6 +264,17 @@ public final class Listener {
     /** Begin listening for the wake word. Safe to call when unavailable - it just does nothing. */
     public void start() {
         if (running || !available()) return;
+        // Turned off and straight back on: the last loop still holds the models it is about
+        // to close, and a new one must not load its own until they are gone.
+        if (thread != null) {
+            try {
+                thread.join(3_000);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                return;
+            }
+            if (thread.isAlive()) return;
+        }
 
         running = true;
         transcriber.warmUp();
@@ -249,6 +305,8 @@ public final class Listener {
             LibVosk.setLogLevel(LogLevel.WARNINGS);
             model = new Model(modelPath().toString());
             command = new Recognizer(model, 16_000f);
+            // Each word with how sure Vosk is of it, for telling speech from noise.
+            command.setWords(true);
             wake = openWakeRecognizer();
 
             line = (TargetDataLine) AudioSystem.getLine(new DataLine.Info(TargetDataLine.class, FORMAT));
@@ -284,7 +342,7 @@ public final class Listener {
      * model is used when it is there - it costs 40 MB and does nothing but listen for a name.
      */
     private Recognizer openWakeRecognizer() throws Exception {
-        if (supportsGrammar(wakeModelPath())) {
+        if (supportsGrammar(wakeModelPath()) && !wakeModelPath().equals(modelPath())) {
             wakeModel = new Model(wakeModelPath().toString());
         } else if (supportsGrammar(modelPath())) {
             wakeModel = model;
@@ -334,15 +392,19 @@ public final class Listener {
     private void listen(TargetDataLine line, Recognizer wake, Recognizer command) {
         byte[] buffer = new byte[4096];
         boolean wasSpeaking = false;
+        long voiceAt = 0;
 
         while (running && !Thread.currentThread().isInterrupted()) {
             int read = line.read(buffer, 0, buffer.length);
             if (read <= 0) continue;
 
-            boolean speaking = speaker.speaking();
+            long now = System.currentTimeMillis();
+            if (speaker.speaking()) voiceAt = now;
+            boolean speaking = now - voiceAt < ECHO_TAIL_MS;
             if (wasSpeaking && !speaking) {
                 // What the wake recogniser heard over the voice is not the start of anything.
                 wake.reset();
+                nameHeld = 0;
             }
             wasSpeaking = speaking;
 
@@ -395,6 +457,7 @@ public final class Listener {
         if (!heardName(wake, buffer, read)) return;
 
         wake.reset();
+        nameHeld = 0;
         openCommandWindow(command);
     }
 
@@ -404,19 +467,23 @@ public final class Listener {
      * grammar holding nothing but the name, any word it does recognise is the name.
      */
     private boolean heardNameOverVoice(Recognizer wake, byte[] buffer, int read) {
-        String heard = wake.acceptWaveForm(buffer, read)
-                ? textOf(wake.getResult(), "text")
-                : textOf(wake.getPartialResult(), "partial");
-        return afterWakeWord(heard.replace("[unk]", " ").trim()) != null;
+        // Over Jungey's own voice only a final result will do. Its sentences put the name in
+        // the partial often enough to stop it mid-answer and hand it its own words as a
+        // command; the final has not once mistaken them for the name.
+        if (!wake.acceptWaveForm(buffer, read)) return false;
+        return afterWakeWord(textOf(wake.getResult(), "text").replace("[unk]", " ").trim()) != null;
     }
 
     private boolean heardName(Recognizer wake, byte[] buffer, int read) {
         if (wake.acceptWaveForm(buffer, read)) {
+            nameHeld = 0;
             return afterWakeWord(textOf(wake.getResult(), "text")) != null;
         }
         // Partial results let the wake word register before the speaker pauses, so a
-        // command said in the same breath is not left waiting for silence first.
-        return afterWakeWord(textOf(wake.getPartialResult(), "partial")) != null;
+        // command said in the same breath is not left waiting for silence first - once the
+        // name has held long enough not to be a flicker.
+        nameHeld = afterWakeWord(textOf(wake.getPartialResult(), "partial")) != null ? nameHeld + 1 : 0;
+        return nameHeld >= NAME_HELD_CHUNKS;
     }
 
     /** Hand the recogniser and the clip everything heard just before the wake word landed. */
@@ -459,15 +526,21 @@ public final class Listener {
             return;
         }
 
-        String heard = spokeUp
-                ? textOf(command.getResult(), "text")
-                : textOf(command.getFinalResult(), "text");
-        heard = (carried + " " + heard).trim();
+        String result = spokeUp ? command.getResult() : command.getFinalResult();
+        String heard = (carried + " " + textOf(result, "text")).trim();
+        boolean mid = !carried.isEmpty();
         carried = "";
 
         byte[] clip = capture.toByteArray();
         command.reset();
         capture.reset();
+
+        // Noise, not a command: keep listening out the window, but answer nothing. Words
+        // carried over from the wake phrase are someone mid-sentence, never noise.
+        if (!mid && doubtful(result, !wokenByName)) {
+            clearPreroll();
+            return;
+        }
 
         // Whisper is slow enough that the microphone would overrun while it thinks, and
         // everything it says during that second is stale anyway.
@@ -605,6 +678,26 @@ public final class Listener {
             current = swap;
         }
         return previous[b.length()];
+    }
+
+    /**
+     * Whether what Vosk made of a stretch of sound is too doubtful to act on: nothing, or
+     * nothing but noise words - and, when strict, words it was on average unsure of.
+     */
+    private static boolean doubtful(String result, boolean strict) {
+        try {
+            JsonNode words = MAPPER.readTree(result).path("result");
+            if (!words.isArray() || words.isEmpty()) return true;
+            double sure = 0;
+            int meant = 0;
+            for (JsonNode w : words) {
+                sure += w.path("conf").asDouble(1);
+                if (!NOISE.contains(w.path("word").asText())) meant++;
+            }
+            return meant == 0 || (strict && sure / words.size() < MIN_CONFIDENCE);
+        } catch (Exception e) {
+            return false;
+        }
     }
 
     private static String textOf(String json, String field) {

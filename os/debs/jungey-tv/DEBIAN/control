@@ -1,0 +1,13 @@
+Package: jungey-tv
+Version: @VERSION@
+Architecture: amd64
+Section: video
+Priority: optional
+Maintainer: Jungey OS <jungey@localhost>
+Depends: openjdk-21-jre, libgtk-3-0t64
+Homepage: https://github.com/9bista-suven7/jungey-AI
+Description: control center for a Samsung smart TV
+ Jungey TV finds a Samsung smart TV on the home network and runs it from the
+ desktop: power, volume, inputs, its menus, its apps, and any YouTube video.
+ The jungey-tv command does the same one step at a time, which is how Jungey
+ controls the TV by voice.

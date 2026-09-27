@@ -54,6 +54,7 @@ public final class Brain {
         register(briefing);
         register(new ChatterSkill(viewport, sentinel));
         register(new MemorySkill(memory));
+        register(new TvSkill(viewport));
         register(new AlertsSkill(sentinel));
         register(new ProtocolSkill(this));
         register(new TimeSkill());

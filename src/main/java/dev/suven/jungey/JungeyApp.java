@@ -9,8 +9,10 @@ import dev.suven.jungey.core.Skill;
 import dev.suven.jungey.core.SkillResult;
 import dev.suven.jungey.core.Turn;
 import dev.suven.jungey.skills.BriefingSkill;
+import dev.suven.jungey.ui.Avatar;
 import dev.suven.jungey.ui.CameraView;
 import dev.suven.jungey.ui.ConsoleView;
+import dev.suven.jungey.ui.FaceView;
 import dev.suven.jungey.ui.ReactorView;
 import dev.suven.jungey.ui.StatusBar;
 import dev.suven.jungey.voice.Listener;
@@ -21,10 +23,13 @@ import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
+import javafx.scene.Node;
 import javafx.scene.Scene;
 import javafx.scene.control.Label;
+import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
 import javafx.scene.input.KeyCode;
+import javafx.scene.input.KeyEvent;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
@@ -53,7 +58,7 @@ public class JungeyApp extends Application implements dev.suven.jungey.core.View
     private Stage stage;
 
     private ConsoleView console;
-    private ReactorView reactor;
+    private Avatar avatar;
     private StatusBar statusBar;
     private Listener listener;
     private TextField input;
@@ -76,7 +81,8 @@ public class JungeyApp extends Application implements dev.suven.jungey.core.View
         this.stage = stage;
         Config cfg = Config.get();
 
-        reactor = new ReactorView(132);
+        // A face that talks when one is installed (scripts/setup-face.sh), the reactor if not.
+        avatar = FaceView.load(speaker.meter()).<Avatar>map(face -> face).orElseGet(() -> new ReactorView(132));
         console = new ConsoleView();
         listener = new Listener(speaker,
                 heard -> Platform.runLater(() -> {
@@ -89,7 +95,7 @@ public class JungeyApp extends Application implements dev.suven.jungey.core.View
             brain.interrupt();
             Platform.runLater(() -> cutIn = true);
         });
-        statusBar = new StatusBar(speaker::statusLabel, this::earsLabel);
+        statusBar = new StatusBar(speaker::statusLabel, this::earsLabel, this::toggleVoice, this::toggleEars);
 
         BorderPane root = new BorderPane();
         root.getStyleClass().add("root-pane");
@@ -106,6 +112,17 @@ public class JungeyApp extends Application implements dev.suven.jungey.core.View
         scene.setOnKeyPressed(e -> {
             if (e.getCode() == KeyCode.ESCAPE) input.requestFocus();
         });
+        // Clicking into the transcript to copy something leaves the focus there; typing
+        // afterwards goes to the prompt, as it would have before.
+        scene.addEventFilter(KeyEvent.KEY_TYPED, e -> {
+            if (input.isFocused() || e.isShortcutDown() || e.isAltDown()) return;
+            String typed = e.getCharacter();
+            if (typed.isEmpty() || Character.isISOControl(typed.charAt(0))) return;
+            if (!(scene.getFocusOwner() instanceof TextArea line) || !line.getStyleClass().contains("selectable")) return;
+            e.consume();
+            input.requestFocus();
+            input.appendText(typed);
+        });
 
         stage.initStyle(StageStyle.TRANSPARENT);
         stage.setTitle("Jungey");
@@ -119,14 +136,14 @@ public class JungeyApp extends Application implements dev.suven.jungey.core.View
         stage.setMinHeight(420);
         stage.setAlwaysOnTop(cfg.bool("ui.alwaysOnTop"));
         stage.setOnCloseRequest(e -> shutdown());
-        // Nobody watches a minimised reactor spin; stop drawing it until the window is back.
+        // Nobody watches a minimised face; stop drawing it until the window is back.
         stage.iconifiedProperty().addListener((obs, was, minimised) -> {
-            if (minimised) reactor.stop();
-            else reactor.start();
+            if (minimised) avatar.stop();
+            else avatar.start();
         });
         stage.show();
 
-        reactor.start();
+        avatar.start();
         statusBar.start();
         input.requestFocus();
 
@@ -192,9 +209,34 @@ public class JungeyApp extends Application implements dev.suven.jungey.core.View
         listener.start();
     }
 
+    /** The MIC switch in the status bar: on or off now, and remembered for next time. */
+    private void toggleEars() {
+        boolean on = !listener.on();
+        Config cfg = Config.get();
+        cfg.set("voice.input.enabled", String.valueOf(on));
+        cfg.save();
+        if (on) {
+            earsAnnounced = false;
+            startEars();
+        } else {
+            listener.stop();
+            console.addSystem("Microphone off.");
+        }
+    }
+
+    /** The VOICE switch: speak replies aloud, or only show them. */
+    private void toggleVoice() {
+        if (!speaker.available()) {
+            console.addSystem("No voice to turn on - scripts/setup-voice.sh installs one.");
+            return;
+        }
+        speaker.setMuted(!speaker.muted());
+        console.addSystem(speaker.muted() ? "Voice off." : "Voice on.");
+    }
+
     private String earsLabel() {
         return switch (listener.state()) {
-            case OFF -> "off";
+            case OFF -> listener.on() ? "loading" : "off";
             case WAITING -> "wake";
             case LISTENING -> listener.conversing() ? "talk" : "live";
         };
@@ -213,7 +255,7 @@ public class JungeyApp extends Application implements dev.suven.jungey.core.View
                 }
                 speaker.stop();
                 console.addSystem("Yes?");
-                reactor.setState(ReactorView.State.THINKING);
+                avatar.setState(Avatar.State.THINKING);
             }
         } else if (state == Listener.State.WAITING) {
             // The model takes a while to load, so the first WAITING is when the ears truly open.
@@ -223,7 +265,7 @@ public class JungeyApp extends Application implements dev.suven.jungey.core.View
                         + Config.get().str("voice.input.wakeWord", "purple")
                         + "\" - ears: " + listener.inputLabel() + ".");
             }
-            reactor.setState(ReactorView.State.IDLE);
+            avatar.setState(Avatar.State.IDLE);
         }
     }
 
@@ -260,12 +302,13 @@ public class JungeyApp extends Application implements dev.suven.jungey.core.View
     }
 
     private HBox buildBody() {
-        VBox reactorColumn = new VBox(reactor);
-        reactorColumn.setAlignment(Pos.CENTER);
-        reactorColumn.setPadding(new Insets(0, 8, 0, 14));
-        reactorColumn.setMinWidth(168);
+        Node face = avatar.node();
+        VBox avatarColumn = new VBox(face);
+        avatarColumn.setAlignment(Pos.CENTER);
+        avatarColumn.setPadding(new Insets(0, 8, 0, 14));
+        avatarColumn.setMinWidth(Math.max(168, face.prefWidth(-1) + 22));
 
-        HBox body = new HBox(reactorColumn, console);
+        HBox body = new HBox(avatarColumn, console);
         HBox.setHgrow(console, Priority.ALWAYS);
         return body;
     }
@@ -400,7 +443,7 @@ public class JungeyApp extends Application implements dev.suven.jungey.core.View
         }
 
         boolean slow = brain.isSlow(text);
-        reactor.setState(ReactorView.State.THINKING);
+        avatar.setState(Avatar.State.THINKING);
 
         String filler = null;
         if (changingSubject && wantsFiller(brain.route(text))) {
@@ -443,36 +486,36 @@ public class JungeyApp extends Application implements dev.suven.jungey.core.View
 
         // Already shown and spoken while it arrived - nothing left but to settle.
         if (result.streamed()) {
-            reactor.setState(ReactorView.State.IDLE);
+            avatar.setState(Avatar.State.IDLE);
             if (spokenTo) listener.followUp();
             return;
         }
 
         if (!result.ok()) {
-            reactor.setState(ReactorView.State.ERROR);
+            avatar.setState(Avatar.State.ERROR);
             console.addError(result.speech());
             // Hold the red long enough to register, then settle back.
             Timeline back = new Timeline(new KeyFrame(Duration.seconds(1.6),
-                    e -> reactor.setState(ReactorView.State.IDLE)));
+                    e -> avatar.setState(Avatar.State.IDLE)));
             back.play();
             return;
         }
 
         // A blank reply means the skill has already done the talking - or been told not to.
         if (result.speech().isBlank()) {
-            reactor.setState(ReactorView.State.IDLE);
+            avatar.setState(Avatar.State.IDLE);
             if (spokenTo) listener.followUp();
             return;
         }
 
-        reactor.setState(ReactorView.State.SPEAKING);
+        avatar.setState(Avatar.State.SPEAKING);
         speaker.say(result.speech());
 
         console.addJungey(result.speech(), () -> {
             if (result.hasDetail()) {
                 console.addDetail(result.detail());
             }
-            reactor.setState(ReactorView.State.IDLE);
+            avatar.setState(Avatar.State.IDLE);
 
             // Having just been spoken to, stay open briefly so a follow-up needs no wake word.
             if (spokenTo) listener.followUp();
@@ -564,7 +607,7 @@ public class JungeyApp extends Application implements dev.suven.jungey.core.View
         long turn = Turn.mine();
         boolean stale = Turn.superseded(turn);
         java.util.function.Consumer<String> line = stale ? chunk -> { } : console.addJungeyLive();
-        if (!stale) Platform.runLater(() -> reactor.setState(ReactorView.State.SPEAKING));
+        if (!stale) Platform.runLater(() -> avatar.setState(Avatar.State.SPEAKING));
 
         return new ReplyStream() {
             @Override
@@ -608,7 +651,7 @@ public class JungeyApp extends Application implements dev.suven.jungey.core.View
 
     private void shutdown() {
         camera.stop();
-        reactor.stop();
+        avatar.stop();
         statusBar.stop();
         listener.stop();
         speaker.shutdown();

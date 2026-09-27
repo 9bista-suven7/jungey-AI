@@ -18,6 +18,7 @@
 #   OUT=dir         where the ISO lands (default os/out)
 #   CLEAN=1         start from nothing instead of reusing the bootstrapped system
 #   JUNGEY_JAR=f    use this jar instead of running Maven
+#   TV_JAR=f        likewise for Jungey TV (apps/tv)
 #   WITH_CLAUDE=0   leave out Claude Desktop and Claude Code, for builds that
 #                   cannot reach downloads.claude.ai
 #   WITH_VOICE=0    leave out Jungey's piper voice and Vosk model, for builds
@@ -249,6 +250,39 @@ build_jungey_deb() {
     dpkg-deb --root-owner-group -Zxz --build "$stage" "$DEBS/jungey_${version}_amd64.deb" >/dev/null
 }
 
+build_tv_deb() {
+    log "Packaging Jungey TV"
+    local tv_dir=$REPO_DIR/apps/tv version jar stage
+    version=$(sed -n 's:^  <version>\(.*\)</version>:\1:p' "$tv_dir/pom.xml" | head -1)
+    jar=${TV_JAR:-}
+    if [ -z "$jar" ]; then
+        command -v mvn >/dev/null || die "Maven not found; install JDK 21 + Maven or set TV_JAR"
+        local owner
+        owner=$(stat -c %U "$REPO_DIR")
+        if [ "$owner" != root ] && command -v sudo >/dev/null; then
+            sudo -u "$owner" -H mvn -q -B -f "$tv_dir/pom.xml" -DskipTests package
+        else
+            mvn -q -B -f "$tv_dir/pom.xml" -DskipTests package
+        fi
+        jar="$tv_dir/target/jungey-tv-$version.jar"
+    fi
+    [ -f "$jar" ] || die "Jungey TV jar not found at $jar"
+
+    stage=$DEBS/jungey-tv
+    rm -rf "$stage"
+    cp -a "$OS_DIR/debs/jungey-tv" "$stage"
+    sed -i "s/@VERSION@/$version/" "$stage/DEBIAN/control"
+    install -Dm644 "$jar" "$stage/usr/share/jungey-tv/jungey-tv.jar"
+    install -Dm755 "$tv_dir/jungey-tv" "$stage/usr/bin/jungey-tv"
+    install -Dm644 "$tv_dir/jungey-tv.desktop" "$stage/usr/share/applications/jungey-tv.desktop"
+    local size
+    for size in 16 32 48 128 256; do
+        install -Dm644 "$tv_dir/src/main/resources/icons/jungey-tv-$size.png" \
+            "$stage/usr/share/icons/hicolor/${size}x${size}/apps/jungey-tv.png"
+    done
+    dpkg-deb --root-owner-group -Zxz --build "$stage" "$DEBS/jungey-tv_${version}_amd64.deb" >/dev/null
+}
+
 build_live_deb() {
     log "Packaging the live session and installer settings"
     local stage=$DEBS/jungey-live
@@ -281,9 +315,10 @@ customize() {
     rm -rf "$DEBS"
     mkdir -p "$DEBS"
     build_jungey_deb
+    build_tv_deb
     build_live_deb
 
-    log "Installing Jungey and the live session"
+    log "Installing Jungey, Jungey TV and the live session"
     rm -rf "$ROOTFS/tmp/debs"
     cp -r "$DEBS" "$ROOTFS/tmp/debs"
     in_chroot apt-get update

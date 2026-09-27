@@ -75,6 +75,37 @@
     -fx-shape: null;
 }
 
+/* Lines are read-only text areas, so they can be selected; nothing of the box may show. */
+.console .selectable,
+.console .selectable:focused {
+    -fx-background-color: transparent;
+    -fx-background-insets: 0;
+    -fx-background-radius: 0;
+    -fx-padding: 0;
+    -fx-display-caret: false;
+    -fx-highlight-fill: rgba(56, 232, 255, 0.32);
+    -fx-highlight-text-fill: #ffffff;
+}
+
+.console .selectable .content,
+.console .selectable:focused .content {
+    -fx-background-color: transparent;
+    -fx-padding: 0;
+    -fx-cursor: text;
+}
+
+.console .selectable .scroll-pane,
+.console .selectable .scroll-pane > .viewport {
+    -fx-background-color: transparent;
+}
+
+.console .selectable .scroll-bar {
+    -fx-pref-width: 0;
+    -fx-pref-height: 0;
+    -fx-padding: 0;
+    -fx-opacity: 0;
+}
+
 .line-user {
     -fx-font-family: "DejaVu Sans Mono", monospace;
     -fx-font-size: 13px;
@@ -197,4 +228,19 @@
 
 .status-warn {
     -fx-text-fill: #ff8b96;
+}
+
+/* MIC and VOICE: click to turn on or off. Lit while on. */
+.status-switch {
+    -fx-cursor: hand;
+    -fx-background-radius: 4;
+}
+
+.status-switch:on {
+    -fx-text-fill: #38e8ff;
+}
+
+.status-switch:hover {
+    -fx-background-color: rgba(56, 232, 255, 0.12);
+    -fx-text-fill: #e6f7fc;
 }

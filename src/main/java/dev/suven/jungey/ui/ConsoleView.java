@@ -8,14 +8,20 @@ import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.Label;
 import javafx.scene.control.ScrollPane;
+import javafx.scene.control.TextArea;
+import javafx.scene.input.ScrollEvent;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
+import javafx.scene.text.Text;
 import javafx.util.Duration;
 
 import java.util.function.Consumer;
 
-/** The scrolling transcript. Jungey's lines type themselves in; yours appear at once. */
+/**
+ * The scrolling transcript. Jungey's lines type themselves in; yours appear at once. Every
+ * line can be selected and copied - drag across it, then Ctrl+C or right-click.
+ */
 public class ConsoleView extends ScrollPane {
 
     private final VBox lines = new VBox(6);
@@ -37,9 +43,7 @@ public class ConsoleView extends ScrollPane {
 
     /** A line the user typed. */
     public void addUser(String text) {
-        Label label = new Label(text);
-        label.getStyleClass().add("line-user");
-        label.setWrapText(true);
+        TextArea label = selectable(text, "line-user", true);
 
         Label caret = new Label("› ");
         caret.getStyleClass().add("caret-user");
@@ -52,9 +56,7 @@ public class ConsoleView extends ScrollPane {
 
     /** A line from Jungey, typed out character by character. */
     public void addJungey(String text, Runnable onFinished) {
-        Label label = new Label();
-        label.getStyleClass().add("line-jungey");
-        label.setWrapText(true);
+        TextArea label = selectable("", "line-jungey", true);
 
         Label caret = new Label("◆ ");
         caret.getStyleClass().add("caret-jungey");
@@ -76,9 +78,7 @@ public class ConsoleView extends ScrollPane {
      * typewriter. Returns the appender; safe to call from any thread.
      */
     public Consumer<String> addJungeyLive() {
-        Label label = new Label();
-        label.getStyleClass().add("line-jungey");
-        label.setWrapText(true);
+        TextArea label = selectable("", "line-jungey", true);
 
         Label caret = new Label("◆ ");
         caret.getStyleClass().add("caret-jungey");
@@ -88,14 +88,12 @@ public class ConsoleView extends ScrollPane {
         HBox.setHgrow(label, Priority.ALWAYS);
         add(row);
 
-        return chunk -> Platform.runLater(() -> label.setText(label.getText() + chunk));
+        return chunk -> Platform.runLater(() -> label.appendText(chunk));
     }
 
     /** A failure, shown in red without the typing flourish. */
     public void addError(String text) {
-        Label label = new Label(text);
-        label.getStyleClass().add("line-error");
-        label.setWrapText(true);
+        TextArea label = selectable(text, "line-error", true);
 
         Label caret = new Label("⚠ ");
         caret.getStyleClass().add("caret-error");
@@ -107,9 +105,7 @@ public class ConsoleView extends ScrollPane {
 
     /** A monospace detail block - readouts, tables, article text. */
     public void addDetail(String text) {
-        Label label = new Label(text);
-        label.getStyleClass().add("detail");
-        label.setWrapText(false);
+        TextArea label = selectable(text, "detail", false);
 
         VBox box = new VBox(label);
         box.getStyleClass().add("detail-box");
@@ -118,10 +114,7 @@ public class ConsoleView extends ScrollPane {
 
     /** A dim system line, used for the boot sequence. */
     public void addSystem(String text) {
-        Label label = new Label(text);
-        label.getStyleClass().add("line-system");
-        label.setWrapText(true);
-        add(label);
+        add(selectable(text, "line-system", true));
     }
 
     /** A captured picture, shown inline with a caption. */
@@ -147,6 +140,45 @@ public class ConsoleView extends ScrollPane {
         Platform.runLater(() -> lines.getChildren().remove(node));
     }
 
+    /**
+     * Text that looks like a label but can be selected and copied: a read-only text area,
+     * see-through, exactly as tall as its text, so it reads as one line of the transcript.
+     */
+    private TextArea selectable(String content, String style, boolean wrap) {
+        TextArea area = new TextArea(content);
+        area.getStyleClass().addAll("selectable", style);
+        area.setEditable(false);
+        area.setWrapText(wrap);
+        area.setFocusTraversable(false);
+        area.setPrefRowCount(1);
+        area.setPrefColumnCount(1);
+        area.setMinWidth(0);
+        area.setMaxWidth(Double.MAX_VALUE);
+        HBox.setHgrow(area, Priority.ALWAYS);
+
+        // The height of the text inside, once the skin that draws it exists - and again
+        // whenever it wraps differently or grows.
+        area.skinProperty().addListener((obs, old, skin) -> {
+            if (skin == null || !(area.lookup(".text") instanceof Text text)) return;
+            Runnable fit = () -> {
+                double h = Math.ceil(text.getLayoutBounds().getHeight()) + 2;
+                area.setPrefHeight(h);
+                area.setMinHeight(h);
+                area.setMaxHeight(h);
+            };
+            text.layoutBoundsProperty().addListener((o, was, now) -> fit.run());
+            fit.run();
+        });
+
+        // The wheel scrolls the transcript, never the line under the pointer.
+        area.addEventFilter(ScrollEvent.SCROLL, e -> {
+            double extra = lines.getHeight() - getViewportBounds().getHeight();
+            if (extra > 0) setVvalue(Math.max(0, Math.min(1, getVvalue() - e.getDeltaY() / extra)));
+            e.consume();
+        });
+        return area;
+    }
+
     private void add(javafx.scene.Node node) {
         Platform.runLater(() -> lines.getChildren().add(node));
     }
@@ -159,7 +191,7 @@ public class ConsoleView extends ScrollPane {
      * Typewriter effect. Deliberately fast - 14ms a character reads as "printing",
      * where anything slower starts to feel like the app is stalling.
      */
-    private void type(Label target, String text, Runnable onFinished) {
+    private void type(TextArea target, String text, Runnable onFinished) {
         Platform.runLater(() -> {
             Timeline timeline = new Timeline();
             for (int i = 0; i <= text.length(); i++) {
