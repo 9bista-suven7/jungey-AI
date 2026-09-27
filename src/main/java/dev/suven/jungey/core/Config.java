@@ -85,7 +85,7 @@ public final class Config {
         // of a minute, and a 3B model needs about 2.5 GB, so it simply stays loaded.
         props.setProperty("llm.keepAlive", "24h");
         props.setProperty("llm.visionKeepAlive", "60m");
-        // The TV is driven by Jungey TV (apps/tv), found on the PATH or in ~/.local/bin.
+        // The TV is driven by Jungey TV (its own repo, jungey-tv), found on the PATH or in ~/.local/bin.
         props.setProperty("tv.command", "jungey-tv");
         props.setProperty("ui.alwaysOnTop", "false");
         // auto shows the talking face when scripts/setup-face.sh has installed one.
