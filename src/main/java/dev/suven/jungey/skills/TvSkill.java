@@ -26,7 +26,7 @@ import java.util.regex.Pattern;
  * out the top three and remembers the rest for a few minutes, so "play number two" plays
  * that one and "show them" opens Jungey TV's window at all of them.
  *
- * <p>The TV itself is Jungey TV's business - a separate app, apps/tv, with a remote window
+ * <p>The TV itself is Jungey TV's business - a separate app (its own repo, jungey-tv), with a remote window
  * of its own. This only works out what was asked and runs {@code jungey-tv --json} to do
  * it, saying whatever it answers. Nothing here matches unless the TV is mentioned, so
  * "volume up" still means this computer.
@@ -143,7 +143,7 @@ public class TvSkill implements Skill {
         String s = tidy(input);
         String binary = binary();
         if (binary == null) {
-            return SkillResult.error("Jungey TV is not installed. Run apps/tv/install.sh to add it.");
+            return SkillResult.error("Jungey TV is not installed. Clone github.com/9bista-suven7/jungey-tv and run its install.sh to add it.");
         }
 
         if (showing(s)) {
@@ -239,7 +239,7 @@ public class TvSkill implements Skill {
             String type = o.path("type").asText("");
             if (service.isBlank() || where.size() == 2) continue;
             where.add((type.equals("rent") ? "to rent on " : type.equals("buy") ? "to buy on " : type.startsWith("free") ? "free on " : "on ")
-                    + service.replaceFirst("(?i)\\s+(standard with ads|premium|tv store|amazon channel)$", ""));
+                    + service.replaceFirst("(?i)\\s+(standard with ads|premium plus|premium|store|amazon channel|apple tv channel)$", ""));
         }
         return name + (year > 0 ? " from " + year : "") + (where.isEmpty() ? ", not streaming" : ", " + String.join(" and ", where));
     }

@@ -127,6 +127,8 @@ volume up
 lock the screen
 turn on the TV
 open Netflix on the TV
+watch Stranger Things on Netflix
+search YouTube for lofi on the TV
 play lofi hip hop on YouTube on the TV
 purple, what time is it
 voice off
