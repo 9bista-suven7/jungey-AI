@@ -203,6 +203,11 @@ public final class Speaker {
         };
     }
 
+    /** The voice as it is heard, for a face to move its lips by. */
+    public VoiceMeter meter() {
+        return audio.meter;
+    }
+
     public boolean muted() {
         return muted;
     }

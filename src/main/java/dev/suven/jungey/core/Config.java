@@ -86,6 +86,10 @@ public final class Config {
         props.setProperty("llm.keepAlive", "24h");
         props.setProperty("llm.visionKeepAlive", "60m");
         props.setProperty("ui.alwaysOnTop", "false");
+        // auto shows the talking face when scripts/setup-face.sh has installed one.
+        props.setProperty("ui.avatar", "auto");   // auto | face | reactor
+        props.setProperty("ui.face",
+                System.getProperty("user.home") + "/.local/share/jungey/face/face.json");
 
         if (Files.exists(FILE)) {
             try (InputStream in = Files.newInputStream(FILE)) {

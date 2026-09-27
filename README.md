@@ -159,7 +159,9 @@ src/main/java/dev/suven/jungey/
 │   └── SysInfo.java      reads /proc and /sys directly
 ├── skills/               one file per capability
 ├── ui/
-│   ├── ReactorView.java  the animated arc reactor
+│   ├── FaceView.java     a photograph that talks, blinks and looks about
+│   ├── FaceRig.java      moves the photograph's own pixels: jaw, lids, brows, eyes, head
+│   ├── ReactorView.java  the animated arc reactor, when there is no face
 │   ├── ConsoleView.java  transcript with typewriter effect
 │   └── StatusBar.java    live CPU / memory / battery
 ├── net/Http.java         shared HTTP client
@@ -168,6 +170,7 @@ src/main/java/dev/suven/jungey/
     ├── PiperDaemon.java  one piper kept running, so no sentence waits for a model load
     ├── Spoken.java       rewrites replies to be worth hearing
     ├── AudioOut.java     the one place audio leaves the app
+    ├── VoiceMeter.java   how open the mouth saying it is, as it is heard
     ├── Listener.java     wake word and speech recognition
     ├── Transcriber.java  whisper, when vosk is not enough
     ├── WhisperServer.java whisper.cpp kept running with its model loaded
@@ -364,6 +367,25 @@ scripts/setup-brain.sh --model llama3   # or the larger Llama 3 8B
 `llama3.2:1b` in the config. Without Ollama everything else still works — unmatched
 input just says the reasoning core is offline.
 
+**A face** — Vision, from Marvel's films, in place of the reactor.
+
+```bash
+scripts/setup-face.sh
+```
+
+Restart Jungey and he is there, talking. It is his photograph, not a drawing: the jaw
+drops and the lips part in time with the voice as it is heard, opening wide on an "ah",
+barely on an "oo", drawn back over the teeth on an "s". Between sentences he blinks,
+glances about and breathes; he looks up and away while working something out, and the gem
+on his forehead glows brighter as he thinks. It is all done on the CPU in a few
+milliseconds a frame, so it needs no graphics card.
+
+The still belongs to Marvel, so it is not in this repository: the script downloads it onto
+your machine and writes `face.json` beside it, which says where the eyes, mouth, chin and
+gem are. Any front-facing photograph with a closed mouth works the same way with a
+`face.json` of its own - set `ui.face` to it. `scripts/setup-face.sh --remove` brings the
+reactor back.
+
 ## Odds and ends
 
 Up and down at the prompt walk back through what you have typed. "Stop" cuts off a
@@ -414,6 +436,8 @@ models but does not train them.
 | `llm.keepAlive` | `24h` | how long Ollama keeps the chat model loaded; reloading from disk is the slow part |
 | `llm.visionKeepAlive` | `60m` | the same for the vision model, which is asked for less often |
 | `ui.alwaysOnTop` | `false` | pin above other windows |
+| `ui.avatar` | `auto` | `auto` shows the face when one is installed; `face` / `reactor` |
+| `ui.face` | `~/.local/share/jungey/face/face.json` | the face to show; see scripts/setup-face.sh |
 | `sentinel.enabled` | `true` | speak up about battery, heat, memory, disk and network; what `alerts on` / `alerts off` writes |
 | `sentinel.hotCelsius` | `90` | processor temperature worth a warning |
 | `briefing.onBoot` | `true` | brief on the first start of each day |

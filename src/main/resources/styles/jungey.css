@@ -198,3 +198,16 @@
 .status-warn {
     -fx-text-fill: #ff8b96;
 }
+
+/* ---------- face ---------- */
+
+.face-plate {
+    -fx-background-color: #05080e;
+    -fx-background-radius: 12;
+}
+
+.face-rim {
+    -fx-border-color: rgba(56, 232, 255, 0.28);
+    -fx-border-radius: 12;
+    -fx-border-width: 1;
+}
