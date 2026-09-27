@@ -1,0 +1,952 @@
+/*
+ * Jungey Notepad. Two looks from one set of rules: .dark (Jungey's night glass and cyan)
+ * and .light (paper), each defining the same named colours, which everything below uses.
+ */
+
+/* ---------- the two looks ---------- */
+
+.dark {
+    -np-bg: #070b12;
+    -np-panel: #0a0f18;
+    -np-paper: #0c121c;
+    -np-raise: rgba(255, 255, 255, 0.05);
+    -np-raise-2: rgba(255, 255, 255, 0.09);
+    -np-line: rgba(120, 200, 255, 0.12);
+    -np-line-2: rgba(120, 200, 255, 0.24);
+    -np-ink: #e3edf3;
+    -np-ink-strong: #f5fbff;
+    -np-ink-2: rgba(196, 218, 232, 0.76);
+    -np-ink-3: rgba(160, 192, 212, 0.54);
+    -np-accent: #38e8ff;
+    -np-accent-2: #16b8d6;
+    -np-accent-ink: #03141a;
+    -np-accent-soft: rgba(56, 232, 255, 0.13);
+    -np-select: rgba(56, 232, 255, 0.24);
+    -np-code: rgba(255, 255, 255, 0.07);
+    -np-code-ink: #ffd49a;
+    -np-tag: #b9a4ff;
+    -np-tag-soft: rgba(167, 139, 250, 0.16);
+    -np-ok: #4dffa6;
+    -np-warn: #ffc94a;
+    -np-bad: #ff6b7a;
+    -np-shade: rgba(2, 5, 10, 0.62);
+    -np-shadow: rgba(0, 0, 0, 0.55);
+
+    /* Modena's own controls - menus, scroll bars, check boxes - in the same night. */
+    -fx-base: #151d2a;
+    -fx-background: #0a0f18;
+    -fx-control-inner-background: #0c121c;
+    -fx-accent: #16b8d6;
+    -fx-focus-color: #38e8ff;
+    -fx-faint-focus-color: rgba(56, 232, 255, 0.14);
+    -fx-selection-bar: rgba(56, 232, 255, 0.24);
+    -fx-selection-bar-non-focused: rgba(56, 232, 255, 0.14);
+}
+
+.light {
+    -np-bg: #eceff4;
+    -np-panel: #f5f7fa;
+    -np-paper: #ffffff;
+    -np-raise: rgba(20, 45, 70, 0.045);
+    -np-raise-2: rgba(20, 45, 70, 0.085);
+    -np-line: rgba(20, 45, 70, 0.11);
+    -np-line-2: rgba(20, 45, 70, 0.22);
+    -np-ink: #1d2330;
+    -np-ink-strong: #0e131c;
+    -np-ink-2: #4a5566;
+    -np-ink-3: #7b8595;
+    -np-accent: #0a7d9c;
+    -np-accent-2: #0a7d9c;
+    -np-accent-ink: #ffffff;
+    -np-accent-soft: rgba(10, 125, 156, 0.1);
+    -np-select: rgba(10, 125, 156, 0.2);
+    -np-code: #f1f4f8;
+    -np-code-ink: #9a4a00;
+    -np-tag: #6647d0;
+    -np-tag-soft: rgba(102, 71, 208, 0.1);
+    -np-ok: #178a52;
+    -np-warn: #a86a00;
+    -np-bad: #cc2f43;
+    -np-shade: rgba(30, 40, 55, 0.28);
+    -np-shadow: rgba(20, 35, 55, 0.2);
+
+    -fx-base: #f3f5f8;
+    -fx-background: #f5f7fa;
+    -fx-control-inner-background: #ffffff;
+    -fx-accent: #0a7d9c;
+    -fx-focus-color: #0a7d9c;
+    -fx-faint-focus-color: rgba(10, 125, 156, 0.14);
+    -fx-selection-bar: rgba(10, 125, 156, 0.2);
+    -fx-selection-bar-non-focused: rgba(10, 125, 156, 0.12);
+}
+
+.root {
+    -fx-font-family: "Inter";
+    -fx-font-size: 13px;
+}
+
+.backdrop,
+.history-root {
+    -fx-background-color: -np-bg;
+}
+
+.label {
+    -fx-text-fill: -np-ink;
+}
+
+.muted {
+    -fx-text-fill: -np-ink-3;
+    -fx-font-size: 12px;
+}
+
+.section {
+    -fx-text-fill: -np-ink-3;
+    -fx-font-size: 10.5px;
+    -fx-font-weight: bold;
+}
+
+/* ---------- buttons ---------- */
+
+.button,
+.menu-button,
+.toggle-button {
+    -fx-background-color: transparent;
+    -fx-background-radius: 9;
+    -fx-border-color: transparent;
+    -fx-border-radius: 9;
+    -fx-text-fill: -np-ink;
+    -fx-padding: 6 12 6 12;
+    -fx-cursor: hand;
+}
+
+.button:hover,
+.menu-button:hover,
+.menu-button:showing,
+.toggle-button:hover {
+    -fx-background-color: -np-raise-2;
+}
+
+.button:pressed,
+.toggle-button:pressed {
+    -fx-background-color: -np-select;
+}
+
+.button:focused,
+.toggle-button:focused {
+    -fx-border-color: -np-line-2;
+}
+
+.pill {
+    -fx-background-color: -np-raise;
+    -fx-border-color: -np-line;
+    -fx-background-radius: 20;
+    -fx-border-radius: 20;
+    -fx-padding: 6 14 6 14;
+}
+
+.pill:hover {
+    -fx-background-color: -np-raise-2;
+    -fx-border-color: -np-line-2;
+}
+
+.accent-button,
+.accent-button:hover,
+.accent-button:focused {
+    -fx-background-color: -np-accent;
+    -fx-border-color: transparent;
+    -fx-text-fill: -np-accent-ink;
+    -fx-font-weight: bold;
+}
+
+.accent-button:hover {
+    -fx-background-color: derive(-np-accent, 12%);
+}
+
+.accent-button:pressed {
+    -fx-background-color: -np-accent-2;
+}
+
+.accent-button:disabled {
+    -fx-opacity: 0.45;
+}
+
+.icon-button {
+    -fx-font-size: 16px;
+    -fx-padding: 3 9 3 9;
+    -fx-text-fill: -np-ink-2;
+    -fx-min-width: 34;
+    -fx-alignment: center;
+}
+
+.icon-button:hover {
+    -fx-text-fill: -np-ink-strong;
+}
+
+.menu-button.icon-button > .arrow-button {
+    -fx-padding: 0;
+}
+
+.menu-button.icon-button > .arrow-button > .arrow {
+    -fx-padding: 0;
+    -fx-shape: null;
+}
+
+.menu-button > .label {
+    -fx-text-fill: -np-ink-2;
+}
+
+/* ---------- top bar ---------- */
+
+.top-bar {
+    -fx-background-color: -np-panel;
+    -fx-border-color: transparent transparent -np-line transparent;
+}
+
+.brand {
+    -fx-font-size: 19px;
+    -fx-font-weight: bold;
+    -fx-text-fill: -np-ink-strong;
+}
+
+.brand-sub {
+    -fx-font-size: 10px;
+    -fx-font-weight: bold;
+    -fx-text-fill: -np-accent;
+}
+
+.jump {
+    -fx-background-color: -np-raise;
+    -fx-border-color: -np-line;
+    -fx-background-radius: 10;
+    -fx-border-radius: 10;
+    -fx-text-fill: -np-ink-3;
+    -fx-alignment: center-left;
+    -fx-padding: 7 14 7 14;
+    -fx-pref-width: 440;
+}
+
+.jump:hover {
+    -fx-border-color: -np-line-2;
+    -fx-text-fill: -np-ink-2;
+}
+
+/* ---------- the notes down the side ---------- */
+
+.sidebar {
+    -fx-background-color: -np-panel;
+    -fx-border-color: transparent -np-line transparent transparent;
+}
+
+.text-field,
+.text-area {
+    -fx-background-color: -np-raise;
+    -fx-border-color: -np-line;
+    -fx-background-radius: 9;
+    -fx-border-radius: 9;
+    -fx-text-fill: -np-ink;
+    -fx-prompt-text-fill: -np-ink-3;
+    -fx-highlight-fill: -np-select;
+    -fx-highlight-text-fill: -np-ink-strong;
+    -fx-padding: 7 10 7 10;
+}
+
+.text-field:focused {
+    -fx-border-color: -np-accent;
+    -fx-background-color: -np-paper;
+}
+
+.tag-bar {
+    -fx-padding: 0 0 2 0;
+}
+
+.tag-chip {
+    -fx-background-color: -np-tag-soft;
+    -fx-background-radius: 12;
+    -fx-border-radius: 12;
+    -fx-text-fill: -np-tag;
+    -fx-font-size: 11.5px;
+    -fx-padding: 3 9 3 9;
+}
+
+.tag-chip:hover {
+    -fx-border-color: -np-tag;
+}
+
+.tag-chip:active {
+    -fx-background-color: -np-tag;
+    -fx-text-fill: -np-paper;
+    -fx-font-weight: bold;
+}
+
+.list-view {
+    -fx-background-color: transparent;
+    -fx-background-insets: 0;
+    -fx-padding: 0;
+    -fx-border-width: 0;
+}
+
+.list-view:focused {
+    -fx-background-color: transparent;
+}
+
+.list-cell {
+    -fx-background-color: transparent;
+    -fx-text-fill: -np-ink;
+    -fx-padding: 0;
+}
+
+.note-list .list-cell {
+    -fx-background-radius: 10;
+    -fx-border-width: 0 0 0 3;
+    -fx-border-color: transparent;
+    -fx-border-radius: 2;
+}
+
+.note-list .list-cell:filled:hover {
+    -fx-background-color: -np-raise;
+}
+
+.note-list .list-cell:filled:selected {
+    -fx-background-color: -np-raise-2;
+}
+
+.note-list .list-cell:active {
+    -fx-background-color: -np-accent-soft;
+    -fx-border-color: -np-accent;
+}
+
+.note-title {
+    -fx-font-size: 13.5px;
+    -fx-font-weight: bold;
+    -fx-text-fill: -np-ink-strong;
+}
+
+.note-snippet {
+    -fx-text-fill: -np-ink-2;
+    -fx-font-size: 12px;
+}
+
+.note-meta {
+    -fx-text-fill: -np-ink-3;
+    -fx-font-size: 11px;
+}
+
+.note-tag {
+    -fx-text-fill: -np-tag;
+}
+
+/* ---------- tabs ---------- */
+
+.center {
+    -fx-background-color: -np-paper;
+}
+
+.note-tabs {
+    -fx-background-color: -np-paper;
+    -fx-padding: 0;
+}
+
+.note-tabs > .tab-header-area {
+    -fx-padding: 6 8 0 8;
+}
+
+.note-tabs > .tab-header-area > .tab-header-background {
+    -fx-background-color: -np-panel;
+    -fx-border-color: transparent transparent -np-line transparent;
+}
+
+.note-tabs > .tab-header-area > .headers-region > .tab {
+    -fx-background-color: transparent;
+    -fx-background-radius: 9 9 0 0;
+    -fx-padding: 4 8 4 12;
+    -fx-pref-height: 32;
+}
+
+.note-tabs > .tab-header-area > .headers-region > .tab:hover {
+    -fx-background-color: -np-raise;
+}
+
+.note-tabs > .tab-header-area > .headers-region > .tab:selected {
+    -fx-background-color: -np-paper;
+    -fx-border-color: -np-line -np-line transparent -np-line;
+    -fx-border-radius: 9 9 0 0;
+}
+
+.note-tabs .tab .tab-label {
+    -fx-text-fill: -np-ink-2;
+}
+
+.note-tabs .tab:selected .tab-label {
+    -fx-text-fill: -np-ink-strong;
+    -fx-font-weight: bold;
+}
+
+.note-tabs .tab:selected .focus-indicator {
+    -fx-border-color: transparent;
+}
+
+.note-tabs .tab .tab-close-button {
+    -fx-background-color: -np-ink-3;
+}
+
+.note-tabs .tab .tab-close-button:hover {
+    -fx-background-color: -np-bad;
+}
+
+.note-tabs > .tab-header-area > .control-buttons-tab > .container > .tab-down-button {
+    -fx-background-color: transparent;
+}
+
+.note-tabs > .tab-header-area > .control-buttons-tab > .container > .tab-down-button > .arrow {
+    -fx-background-color: -np-ink-2;
+}
+
+/* Focus mode: only the words. The tabs stay reachable under the pointer. */
+.note-tabs.focus > .tab-header-area {
+    -fx-opacity: 0;
+}
+
+.note-tabs.focus > .tab-header-area:hover {
+    -fx-opacity: 1;
+}
+
+/* ---------- the editor ---------- */
+
+.split-pane,
+.editor-split {
+    -fx-background-color: -np-paper;
+    -fx-background-insets: 0;
+    -fx-padding: 0;
+    -fx-border-width: 0;
+}
+
+.editor-split > .split-pane-divider {
+    -fx-background-color: -np-line;
+    -fx-padding: 0 0.5 0 0.5;
+}
+
+.editor-box {
+    -fx-background-color: -np-paper;
+}
+
+.editor {
+    -fx-background-color: -np-paper;
+    -fx-font-family: "Inter";
+    -fx-font-size: 15px;
+}
+
+.mono .editor {
+    -fx-font-family: "JetBrains Mono";
+}
+
+.editor .paragraph-text {
+    -fx-line-spacing: 5;
+}
+
+.editor .text {
+    -fx-fill: -np-ink;
+}
+
+.editor .caret {
+    -fx-stroke: -np-accent;
+    -fx-stroke-width: 2;
+}
+
+.editor .selection {
+    -fx-fill: -np-select;
+}
+
+.editor .lineno {
+    -fx-background-color: -np-paper;
+    -fx-text-fill: -np-ink-3;
+    -fx-font-family: "JetBrains Mono";
+    -fx-font-size: 11px;
+    -fx-padding: 0 10 0 4;
+}
+
+.editor .md-h1 {
+    -fx-font-size: 1.6em;
+    -fx-font-weight: bold;
+    -fx-fill: -np-ink-strong;
+}
+
+.editor .md-h2 {
+    -fx-font-size: 1.3em;
+    -fx-font-weight: bold;
+    -fx-fill: -np-ink-strong;
+}
+
+.editor .md-h3 {
+    -fx-font-size: 1.1em;
+    -fx-font-weight: bold;
+    -fx-fill: -np-ink-strong;
+}
+
+.editor .md-bold {
+    -fx-font-weight: bold;
+    -fx-fill: -np-ink-strong;
+}
+
+.editor .md-italic {
+    -fx-font-style: italic;
+}
+
+.editor .md-strike {
+    -fx-strikethrough: true;
+    -fx-fill: -np-ink-3;
+}
+
+.editor .md-code,
+.editor .md-codeblock {
+    -fx-font-family: "JetBrains Mono";
+    -fx-fill: -np-code-ink;
+    -rtfx-background-color: -np-code;
+}
+
+.editor .md-codeblock {
+    -fx-fill: -np-ink-2;
+}
+
+.editor .md-link {
+    -fx-fill: -np-accent;
+    -fx-underline: true;
+}
+
+.editor .md-tag {
+    -fx-fill: -np-tag;
+    -fx-font-weight: bold;
+}
+
+.editor .md-quote {
+    -fx-fill: -np-ink-2;
+    -fx-font-style: italic;
+}
+
+.editor .md-done {
+    -fx-fill: -np-ink-3;
+    -fx-strikethrough: true;
+}
+
+.editor .md-bullet {
+    -fx-fill: -np-accent;
+    -fx-font-weight: bold;
+}
+
+.editor .md-checkbox {
+    -fx-fill: -np-accent;
+    -fx-font-family: "JetBrains Mono";
+    -fx-strikethrough: false;
+}
+
+.editor .md-rule {
+    -fx-fill: -np-ink-3;
+}
+
+/* ---------- scroll bars ---------- */
+
+.scroll-bar {
+    -fx-background-color: transparent;
+    -fx-background-insets: 0;
+    -fx-padding: 1;
+}
+
+.scroll-bar:vertical {
+    -fx-pref-width: 10;
+}
+
+.scroll-bar:horizontal {
+    -fx-pref-height: 10;
+}
+
+.scroll-bar .thumb {
+    -fx-background-color: -np-line-2;
+    -fx-background-radius: 5;
+    -fx-background-insets: 1;
+}
+
+.scroll-bar .thumb:hover {
+    -fx-background-color: -np-ink-3;
+}
+
+.scroll-bar .track,
+.scroll-bar .track-background {
+    -fx-background-color: transparent;
+}
+
+.scroll-bar .increment-button,
+.scroll-bar .decrement-button {
+    -fx-padding: 0;
+    -fx-background-color: transparent;
+}
+
+.scroll-bar .increment-arrow,
+.scroll-bar .decrement-arrow {
+    -fx-padding: 0;
+    -fx-shape: null;
+}
+
+.scroll-pane,
+.scroll-pane > .viewport {
+    -fx-background-color: transparent;
+    -fx-background: transparent;
+}
+
+.scroll-pane > .corner {
+    -fx-background-color: transparent;
+}
+
+/* ---------- the preview ---------- */
+
+.preview,
+.preview > .viewport {
+    -fx-background-color: -np-paper;
+    -fx-background: -np-paper;
+    -fx-background-insets: 0;
+    -fx-padding: 0;
+}
+
+.preview-page {
+    -fx-background-color: -np-paper;
+}
+
+.pv-text {
+    -fx-fill: -np-ink;
+    -fx-font-size: 15px;
+}
+
+.pv-p {
+    -fx-line-spacing: 4;
+}
+
+.pv-h1 .pv-text {
+    -fx-font-size: 26px;
+    -fx-font-weight: bold;
+    -fx-fill: -np-ink-strong;
+}
+
+.pv-h2 .pv-text {
+    -fx-font-size: 20px;
+    -fx-font-weight: bold;
+    -fx-fill: -np-ink-strong;
+}
+
+.pv-h3 .pv-text {
+    -fx-font-size: 16.5px;
+    -fx-font-weight: bold;
+    -fx-fill: -np-ink-strong;
+}
+
+.pv-text.pv-bold {
+    -fx-font-weight: bold;
+    -fx-fill: -np-ink-strong;
+}
+
+.pv-text.pv-italic {
+    -fx-font-style: italic;
+}
+
+.pv-text.pv-code {
+    -fx-font-family: "JetBrains Mono";
+    -fx-font-size: 13.5px;
+    -fx-fill: -np-code-ink;
+}
+
+.pv-text.pv-link {
+    -fx-fill: -np-accent;
+    -fx-underline: true;
+}
+
+.pv-text.pv-tag {
+    -fx-fill: -np-tag;
+    -fx-font-weight: bold;
+}
+
+.pv-done .pv-text {
+    -fx-fill: -np-ink-3;
+    -fx-strikethrough: true;
+}
+
+.pv-bullet {
+    -fx-text-fill: -np-accent;
+    -fx-font-size: 15px;
+    -fx-font-weight: bold;
+}
+
+.pv-quote {
+    -fx-border-color: transparent transparent transparent -np-accent;
+    -fx-border-width: 0 0 0 3;
+    -fx-padding: 2 0 2 14;
+}
+
+.pv-quote .pv-text {
+    -fx-fill: -np-ink-2;
+    -fx-font-style: italic;
+}
+
+.pv-codeblock {
+    -fx-background-color: -np-code;
+    -fx-background-radius: 8;
+    -fx-padding: 12 14 12 14;
+}
+
+.pv-code-text {
+    -fx-font-family: "JetBrains Mono";
+    -fx-font-size: 13px;
+    -fx-fill: -np-ink;
+}
+
+.pv-rule {
+    -fx-background-color: -np-line-2;
+    -fx-min-height: 1;
+    -fx-pref-height: 1;
+    -fx-max-height: 1;
+}
+
+.pv-empty {
+    -fx-text-fill: -np-ink-3;
+    -fx-font-size: 14px;
+}
+
+.preview .check-box > .box {
+    -fx-background-color: -np-raise-2;
+    -fx-border-color: -np-line-2;
+    -fx-background-radius: 5;
+    -fx-border-radius: 5;
+}
+
+.preview .check-box:selected > .box {
+    -fx-background-color: -np-accent;
+    -fx-border-color: -np-accent;
+}
+
+.preview .check-box:selected > .box > .mark {
+    -fx-background-color: -np-accent-ink;
+}
+
+/* ---------- find and replace ---------- */
+
+.find-bar {
+    -fx-background-color: -np-panel;
+    -fx-border-color: -np-line transparent transparent transparent;
+}
+
+.find-field {
+    -fx-pref-width: 220;
+}
+
+.find-field:none {
+    -fx-border-color: -np-bad;
+}
+
+.find-toggle {
+    -fx-font-family: "JetBrains Mono";
+    -fx-font-size: 11.5px;
+    -fx-text-fill: -np-ink-3;
+    -fx-padding: 5 8 5 8;
+}
+
+.find-toggle:selected {
+    -fx-background-color: -np-accent-soft;
+    -fx-border-color: -np-accent;
+    -fx-text-fill: -np-accent;
+}
+
+.find-button {
+    -fx-background-color: -np-raise;
+    -fx-padding: 5 10 5 10;
+}
+
+.find-count {
+    -fx-text-fill: -np-ink-3;
+    -fx-font-size: 12px;
+}
+
+/* ---------- welcome ---------- */
+
+.welcome-title {
+    -fx-font-size: 30px;
+    -fx-font-weight: bold;
+    -fx-text-fill: -np-ink-strong;
+}
+
+.welcome .muted {
+    -fx-font-size: 13px;
+}
+
+.recent {
+    -fx-alignment: center-left;
+    -fx-font-size: 14px;
+    -fx-text-fill: -np-ink;
+    -fx-padding: 7 10 7 10;
+}
+
+.recent:hover {
+    -fx-text-fill: -np-accent;
+}
+
+/* ---------- status bar ---------- */
+
+.status-bar {
+    -fx-background-color: -np-panel;
+    -fx-border-color: -np-line transparent transparent transparent;
+}
+
+.status {
+    -fx-text-fill: -np-ink-3;
+    -fx-font-size: 11.5px;
+}
+
+.save-state {
+    -fx-font-size: 11.5px;
+    -fx-font-weight: bold;
+    -fx-text-fill: -np-ink-3;
+}
+
+.save-state.saved { -fx-text-fill: -np-ok; }
+.save-state.editing { -fx-text-fill: -np-warn; }
+.save-state.failed { -fx-text-fill: -np-bad; }
+
+/* ---------- the palette ---------- */
+
+.palette-shade {
+    -fx-background-color: -np-shade;
+}
+
+.palette {
+    -fx-background-color: -np-panel;
+    -fx-background-radius: 14;
+    -fx-border-color: -np-line-2;
+    -fx-border-radius: 14;
+    -fx-effect: dropshadow(gaussian, -np-shadow, 36, 0.15, 0, 14);
+}
+
+.palette-field {
+    -fx-font-size: 15px;
+    -fx-padding: 10 12 10 12;
+}
+
+.palette-list .list-cell {
+    -fx-padding: 0 12 0 12;
+    -fx-background-radius: 9;
+}
+
+.palette-list .list-cell:filled:hover {
+    -fx-background-color: -np-raise;
+}
+
+.palette-list .list-cell:filled:selected {
+    -fx-background-color: -np-accent-soft;
+}
+
+.palette-title {
+    -fx-font-size: 13.5px;
+    -fx-text-fill: -np-ink-strong;
+}
+
+.palette-detail {
+    -fx-font-size: 11px;
+    -fx-text-fill: -np-ink-3;
+}
+
+.palette-kind {
+    -fx-font-size: 10.5px;
+    -fx-font-weight: bold;
+    -fx-text-fill: -np-ink-3;
+    -fx-background-color: -np-raise;
+    -fx-background-radius: 6;
+    -fx-padding: 2 7 2 7;
+}
+
+.palette-hint {
+    -fx-font-size: 11px;
+    -fx-text-fill: -np-ink-3;
+    -fx-padding: 2 4 0 4;
+}
+
+/* ---------- the toast ---------- */
+
+.toast {
+    -fx-background-color: -np-ink-strong;
+    -fx-text-fill: -np-paper;
+    -fx-background-radius: 18;
+    -fx-padding: 8 16 8 16;
+    -fx-font-size: 12.5px;
+    -fx-effect: dropshadow(gaussian, -np-shadow, 18, 0.1, 0, 6);
+}
+
+/* ---------- history ---------- */
+
+.history-list {
+    -fx-background-color: -np-panel;
+}
+
+.history-list .list-cell {
+    -fx-padding: 8 12 8 12;
+    -fx-text-fill: -np-ink;
+}
+
+.history-list .list-cell:filled:hover {
+    -fx-background-color: -np-raise;
+}
+
+.history-list .list-cell:filled:selected {
+    -fx-background-color: -np-accent-soft;
+    -fx-text-fill: -np-ink-strong;
+}
+
+.history-text,
+.history-text .content {
+    -fx-background-color: -np-paper;
+    -fx-background-radius: 0;
+    -fx-border-width: 0;
+}
+
+.history-text {
+    -fx-font-family: "JetBrains Mono";
+    -fx-font-size: 13px;
+    -fx-padding: 8;
+}
+
+.history-change {
+    -fx-text-fill: -np-ink-3;
+}
+
+/* ---------- menus and tips ---------- */
+
+.context-menu {
+    -fx-background-color: -np-panel;
+    -fx-background-radius: 10;
+    -fx-border-color: -np-line-2;
+    -fx-border-radius: 10;
+    -fx-padding: 5;
+    -fx-effect: dropshadow(gaussian, -np-shadow, 20, 0.1, 0, 6);
+}
+
+.menu-item {
+    -fx-background-radius: 7;
+    -fx-padding: 6 12 6 12;
+}
+
+.menu-item .label {
+    -fx-text-fill: -np-ink;
+}
+
+.menu-item:focused {
+    -fx-background-color: -np-accent-soft;
+}
+
+.menu-item:focused .label {
+    -fx-text-fill: -np-ink-strong;
+}
+
+.separator-menu-item .line {
+    -fx-border-color: -np-line transparent transparent transparent;
+}
+
+.tooltip {
+    -fx-background-color: -np-ink-strong;
+    -fx-text-fill: -np-paper;
+    -fx-background-radius: 7;
+    -fx-font-size: 12px;
+    -fx-padding: 5 9 5 9;
+}
