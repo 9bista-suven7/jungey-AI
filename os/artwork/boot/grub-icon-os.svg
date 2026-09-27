@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32">
+  <!-- Boot menu icon for any other system: a plain screen. -->
+  <rect x="3" y="5" width="26" height="18" rx="3" fill="none" stroke="#9fb7c6" stroke-width="2"/>
+  <path d="M11 28h10M16 23v5" stroke="#9fb7c6" stroke-width="2" stroke-linecap="round"/>
+</svg>

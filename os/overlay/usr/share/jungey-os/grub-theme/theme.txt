@@ -1,0 +1,74 @@
+# Jungey OS boot menu. The images and fonts beside this file come from
+# install-artwork.sh and hooks/35-boot-menu.sh.
+
+title-text: ""
+desktop-image: "background.png"
+desktop-image-scale-method: "crop"
+desktop-color: "#050b12"
+# The text screen (command line, boot messages) covers the whole screen in
+# GRUB's own font (unicode.pf2): a sized box in a theme font hangs BIOS
+# GRUB at 640x480.
+terminal-font: "Unifont Regular 16"
+terminal-left: "0"
+terminal-top: "0"
+terminal-width: "100%"
+terminal-height: "100%"
+terminal-border: "0"
+
++ label {
+    left = 8%
+    top = 18%
+    width = 50%
+    height = 40
+    text = "J U N G E Y   O S"
+    font = "Inter Regular 24"
+    color = "#d8f6ff"
+}
+
++ image {
+    left = 8%
+    top = 18%+44
+    width = 96
+    height = 3
+    file = "underline.png"
+}
+
++ boot_menu {
+    left = 8%
+    top = 30%
+    width = 56%
+    height = 46%
+    item_font = "Inter Regular 20"
+    item_color = "#9fb7c6"
+    selected_item_font = "Inter Regular 20"
+    selected_item_color = "#ffffff"
+    selected_item_pixmap_style = "select_*.png"
+    icon_width = 32
+    icon_height = 32
+    item_icon_space = 18
+    item_height = 48
+    item_padding = 14
+    item_spacing = 6
+    scrollbar = false
+}
+
++ label {
+    left = 8%
+    top = 81%
+    width = 44%
+    height = 30
+    id = "__timeout__"
+    text = "Starting the highlighted system in %d seconds"
+    font = "Inter Regular 16"
+    color = "#5ad7ff"
+}
+
++ label {
+    left = 8%
+    top = 92%
+    width = 84%
+    height = 24
+    text = "Arrow keys to choose  ·  Enter to start  ·  E to edit  ·  C for a command line"
+    font = "Inter Regular 16"
+    color = "#4f6b7d"
+}

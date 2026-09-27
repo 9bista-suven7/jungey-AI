@@ -1,10 +1,22 @@
-# Runs inside the new system. The boot splash: the machine maker's logo with a
-# spinner (Ubuntu's "bgrt" theme), and Jungey's emblem where Ubuntu's would be.
+# Runs inside the new system. The boot splash: Jungey's reactor turning over on
+# the navy of the wallpaper (install-artwork.sh renders the frames). It uses
+# Ubuntu's two-step engine, so encrypted-disk passwords and boot messages work
+# exactly as they do under Ubuntu's own spinner.
 set -euo pipefail
 
+theme=/usr/share/plymouth/themes/jungey
+# The keyboard-layout and caps-lock hints come from the spinner theme as they are.
+for f in capslock.png keyboard.png keymap-render.png; do
+    cp /usr/share/plymouth/themes/spinner/$f "$theme/$f"
+done
+
+# Earlier builds put Jungey's emblem into the spinner theme; give it back.
 watermark=/usr/share/plymouth/themes/spinner/watermark.png
-if ! dpkg-divert --list "$watermark" | grep -q .; then
-    dpkg-divert --local --rename --divert "$watermark.ubuntu" --add "$watermark"
+if dpkg-divert --list "$watermark" | grep -q .; then
+    rm -f "$watermark"
+    dpkg-divert --local --rename --remove "$watermark"
 fi
-# A copy, not a link: the initramfs gets the theme's files, not what they point to.
-cp /usr/share/jungey-os/boot-watermark.png "$watermark"
+
+update-alternatives --install /usr/share/plymouth/themes/default.plymouth default.plymouth \
+    "$theme/jungey.plymouth" 200
+update-alternatives --set default.plymouth "$theme/jungey.plymouth"

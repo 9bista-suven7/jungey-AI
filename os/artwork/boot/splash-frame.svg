@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="220" height="220" viewBox="0 0 400 400">
+  <!-- One frame of the boot splash: the reactor with its ring turned by @ANGLE@ degrees
+       and its core at @GLOW@ brightness. install-artwork.sh renders the loop from it. -->
+  <defs>
+    <radialGradient id="core" cx="50%" cy="50%" r="50%">
+      <stop offset="0" stop-color="#ffffff"/>
+      <stop offset="0.35" stop-color="#bff3ff"/>
+      <stop offset="1" stop-color="#27c4f5"/>
+    </radialGradient>
+    <radialGradient id="glow" cx="50%" cy="50%" r="50%">
+      <stop offset="0.55" stop-color="#5ad7ff" stop-opacity="0.5"/>
+      <stop offset="1" stop-color="#5ad7ff" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <circle cx="200" cy="200" r="198" fill="url(#glow)" opacity="@GLOW@"/>
+  <circle cx="200" cy="200" r="170" fill="#0c1a26"/>
+  <circle cx="200" cy="200" r="155" fill="none" stroke="#1f6f8b" stroke-width="10"/>
+  <circle cx="200" cy="200" r="118" fill="none" stroke="#5ad7ff" stroke-width="34"
+          stroke-dasharray="60.1 14" transform="rotate(@ANGLE@ 200 200)"/>
+  <circle cx="200" cy="200" r="80" fill="#0c1a26"/>
+  <circle cx="200" cy="200" r="70" fill="none" stroke="#9eeaff" stroke-width="6"/>
+  <circle cx="200" cy="200" r="52" fill="url(#core)"/>
+  <circle cx="200" cy="200" r="52" fill="#ffffff" opacity="@FLASH@"/>
+</svg>

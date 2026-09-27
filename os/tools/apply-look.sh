@@ -5,10 +5,11 @@
 #   sudo ./os/tools/apply-look.sh
 #
 # It installs anything in config/packages.list that is missing, refreshes the
-# system-wide defaults (theme, panel, terminal, wallpaper, zsh, the Jungey
-# launcher and its login entry), switches your
-# account to zsh, and resets your own desktop settings so the new defaults show.
-# Those settings are backed up first, and nothing else in your home changes.
+# system-wide defaults (the Jungey theme, panel, terminal, wallpaper, login
+# screen, boot splash, boot menu, zsh, the Jungey launcher and its login entry),
+# switches your account to zsh, and resets your own desktop settings so the new
+# defaults show. Those settings are backed up first, and nothing else in your
+# home changes. The boot splash and boot menu show from the next restart.
 set -euo pipefail
 
 OS_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
@@ -27,13 +28,10 @@ DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends librsv
 echo "==> Refreshing system defaults"
 rsync -rlK --chown=root:root --chmod=D755 "$OS_DIR/overlay/" /
 chmod 600 /etc/netplan/*.yaml
-install -Dm644 "$OS_DIR/artwork/wallpaper.svg" /usr/share/backgrounds/jungey/jungey-default.svg
-rsvg-convert -w 2560 -h 1440 "$OS_DIR/artwork/wallpaper.svg" -o /usr/share/backgrounds/jungey/jungey-default.png
-# Icons: the reactor for the OS (menu button), the J-and-spark for Jungey itself.
-# /usr/local/share comes first in the icon search path, so these win over the
-# older icons the installed jungey package carries.
-install -Dm644 "$OS_DIR/artwork/reactor.svg" /usr/share/icons/hicolor/scalable/apps/jungey-os.svg
-rsvg-convert -w 256 -h 256 "$OS_DIR/artwork/reactor.svg" -o /usr/share/pixmaps/jungey-os.png
+# Wallpaper, login screen, the reactor icon, boot splash and boot menu images.
+"$OS_DIR/tools/install-artwork.sh" /
+# The J-and-spark for Jungey itself. /usr/local/share comes first in the icon
+# search path, so these win over the older icons the installed jungey package carries.
 for size in 16 32 48 128 256; do
     install -Dm644 "$OS_DIR/../src/main/resources/icons/jungey-$size.png" \
         "/usr/local/share/icons/hicolor/${size}x${size}/apps/jungey.png"
@@ -46,11 +44,14 @@ gtk-update-icon-cache -q -f /usr/local/share/icons/hicolor || true
 install -Dm755 "$OS_DIR/debs/jungey/usr/bin/jungey" /usr/bin/jungey
 install -Dm644 "$OS_DIR/debs/jungey/etc/xdg/autostart/jungey.desktop" /etc/xdg/autostart/jungey.desktop
 
-# The desktop and Claude hooks only touch system defaults, so they are safe to
-# rerun on an installed system (the others set up identity and the live image).
-for hook in 20-desktop.sh 25-claude.sh; do
+# These hooks only touch system defaults, so they are safe to rerun on an
+# installed system (the others set up identity and the live image).
+for hook in 12-names.sh 18-theme.sh 20-desktop.sh 25-claude.sh 30-boot-splash.sh 35-boot-menu.sh; do
     bash -e "$OS_DIR/hooks/$hook"
 done
+echo "==> Updating the boot splash and boot menu"
+update-initramfs -u
+update-grub
 
 echo "==> Setting up $user"
 backup=$home/.config/jungey-look-backup-$(date +%Y%m%d-%H%M%S)
@@ -60,15 +61,19 @@ if [ -e "$home/.zshrc" ]; then
 fi
 install -o "$user" -g "$(id -gn "$user")" -m644 /etc/skel/.zshrc "$home/.zshrc"
 chsh -s /usr/bin/zsh "$user"
+if [ -e "$home/.config/neofetch/config.conf" ]; then
+    sudo -u "$user" cp "$home/.config/neofetch/config.conf" "$backup/neofetch.conf"
+fi
+sudo -u "$user" install -D -m644 /etc/skel/.config/neofetch/config.conf "$home/.config/neofetch/config.conf"
 
 # Drop your own overrides so the new system defaults take effect.
 xml=$home/.config/xfce4/xfconf/xfce-perchannel-xml
-for channel in xsettings xfwm4 xfce4-panel xfce4-terminal; do
+for channel in xsettings xfwm4 xfce4-panel xfce4-terminal xfce4-notifyd; do
     [ -e "$xml/$channel.xml" ] && sudo -u "$user" cp "$xml/$channel.xml" "$backup/"
 done
 if [ -S "/run/user/$uid/bus" ]; then
     as_user() { sudo -u "$user" DISPLAY=:0 DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$uid/bus" "$@"; }
-    for channel in xsettings xfwm4 xfce4-panel xfce4-terminal; do
+    for channel in xsettings xfwm4 xfce4-panel xfce4-terminal xfce4-notifyd; do
         as_user xfconf-query -c "$channel" -p / -r -R 2>/dev/null || true
     done
     [ -d "$home/.config/xfce4/panel" ] && sudo -u "$user" mv "$home/.config/xfce4/panel" "$backup/panel"

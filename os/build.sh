@@ -9,6 +9,7 @@
 #
 # Runs on Ubuntu 24.04 as root. Host packages it needs:
 #   debootstrap squashfs-tools xorriso mtools dosfstools librsvg2-bin rsync
+#   (and fonts-inter fonts-jetbrains-mono, for the text in the artwork)
 # plus JDK 21 and Maven to build Jungey itself, unless JUNGEY_JAR points at a
 # jar that is already built.
 #
@@ -330,17 +331,8 @@ customize() {
 
     log "Applying the Jungey OS look and settings"
     rsync -rlK --chown=root:root --chmod=D755 "$OS_DIR/overlay/" "$ROOTFS/"
-    install -Dm644 "$OS_DIR/artwork/wallpaper.svg" "$ROOTFS/usr/share/backgrounds/jungey/jungey-default.svg"
-    rsvg-convert -w 2560 -h 1440 "$OS_DIR/artwork/wallpaper.svg" \
-        -o "$ROOTFS/usr/share/backgrounds/jungey/jungey-default.png"
-    # "jungey-os": the menu button, installer and os-release logo.
-    install -Dm644 "$OS_DIR/artwork/reactor.svg" \
-        "$ROOTFS/usr/share/icons/hicolor/scalable/apps/jungey-os.svg"
-    mkdir -p "$ROOTFS/usr/share/pixmaps"
-    rsvg-convert -w 256 -h 256 "$OS_DIR/artwork/reactor.svg" -o "$ROOTFS/usr/share/pixmaps/jungey-os.png"
-    mkdir -p "$ROOTFS/usr/share/jungey-os"
-    rsvg-convert -w 88 -h 88 "$OS_DIR/artwork/reactor.svg" \
-        -o "$ROOTFS/usr/share/jungey-os/boot-watermark.png"
+    # Wallpaper, login screen, icons, boot splash and boot menu images.
+    "$OS_DIR/tools/install-artwork.sh" "$ROOTFS"
 
     install_voice
 
@@ -443,8 +435,10 @@ make_bootloader() {
     echo "full_cd/single" > "$ISO/.disk/cd_type"
     touch "$ISO/.disk/base_installable"
     sed -e "s/@OS_NAME@/$OS_NAME/g" -e "s/@ISO_UUID@/$ISO_UUID/g" "$OS_DIR/iso/grub.cfg" > "$ISO/boot/grub/grub.cfg"
-    mkdir -p "$ISO/boot/grub/fonts"
+    mkdir -p "$ISO/boot/grub/fonts" "$ISO/boot/grub/themes"
     cp "$ROOTFS/usr/share/grub/unicode.pf2" "$ISO/boot/grub/fonts/"
+    # The same Jungey boot menu the installed system gets (hooks/35-boot-menu.sh).
+    cp -r "$ROOTFS/boot/grub/themes/jungey" "$ISO/boot/grub/themes/"
 
     # --- BIOS: GRUB core image for El Torito, modules alongside ---
     mkdir -p "$ISO/boot/grub/i386-pc"

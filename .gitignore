@@ -12,3 +12,4 @@ dependency-reduced-pom.xml
 # Jungey OS build output
 os/work/
 os/out/
+__pycache__/
