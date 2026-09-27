@@ -17,21 +17,34 @@ can be cut off mid-sentence the way a person can. See [Like JARVIS](#like-jarvis
 
 A whole computer built around Jungey: a lightweight Linux desktop (Ubuntu 24.04 LTS
 with Xfce) that boots from a USB stick and installs with a graphical installer, with
-Jungey, Jungey TV, Claude Desktop and Claude Code included. Download the ISO from the
-[latest build](https://github.com/9bista-suven7/jungey-AI/releases/tag/jungey-os-latest);
-[os/README.md](os/README.md) covers making the USB stick, installing, and building it
-yourself.
+Jungey, Jungey TV, Claude Desktop and Claude Code included. Its own repo:
+[jungey-os-live](https://github.com/9bista-suven7/jungey-os-live), which covers
+downloading the ISO, making the USB stick, installing, and building it yourself.
 
 ## Jungey TV
 
 A control center for a Samsung smart TV, as an app of its own beside Jungey: power,
 sound, inputs, menus, the TV's apps and any YouTube video, all on one screen. Jungey uses
 its `jungey-tv` command to do the same by voice - "open Netflix on the TV", "play lofi on
-YouTube on the TV". [apps/tv/README.md](apps/tv/README.md) covers installing and pairing:
+YouTube on the TV". Its own repo:
+[jungey-tv](https://github.com/9bista-suven7/jungey-tv), which covers installing and
+pairing:
 
 ```bash
-apps/tv/install.sh
+git clone https://github.com/9bista-suven7/jungey-tv.git
+jungey-tv/install.sh
 jungey-tv pair
+```
+
+## Jungey Notepad
+
+Plain Markdown notes, saved as you type, with every version kept: a window of its own
+beside Jungey, with a `jungey-notepad` command Jungey can run. Its own repo:
+[jungey-notepad](https://github.com/9bista-suven7/jungey-notepad).
+
+```bash
+git clone https://github.com/9bista-suven7/jungey-notepad.git
+jungey-notepad/install.sh
 ```
 
 ## Run it

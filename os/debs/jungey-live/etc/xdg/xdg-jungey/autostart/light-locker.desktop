@@ -1,7 +1,0 @@
-# Live session only (this package is removed by the installer): the live user
-# has no password, and a locked screen mid-install only gets in the way.
-[Desktop Entry]
-Type=Application
-Name=Screen Locker
-Exec=light-locker
-Hidden=true

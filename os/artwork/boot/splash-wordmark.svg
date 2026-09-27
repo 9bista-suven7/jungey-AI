@@ -1,7 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="560" height="90" viewBox="0 0 560 90">
-  <!-- The name under the boot splash's reactor. -->
-  <text x="280" y="46" text-anchor="middle" fill="#d8f6ff" font-family="Inter, DejaVu Sans, sans-serif"
-        font-size="38" font-weight="700" letter-spacing="14">JUNGEY OS</text>
-  <text x="280" y="78" text-anchor="middle" fill="#5ad7ff" fill-opacity="0.55"
-        font-family="JetBrains Mono, DejaVu Sans Mono, monospace" font-size="14" letter-spacing="2">igniting reactor</text>
-</svg>

@@ -1,3 +1,0 @@
-// Rebuild the Jungey theme when an Orchis update lands, so it never falls behind
-// the theme it is made from.
-DPkg::Post-Invoke { "if [ -x /usr/lib/jungey-os/make-gtk-theme ] && [ /usr/share/themes/Orchis-Teal-Dark-Compact/index.theme -nt /usr/share/themes/Jungey/index.theme ]; then /usr/lib/jungey-os/make-gtk-theme >/dev/null || true; fi"; };
