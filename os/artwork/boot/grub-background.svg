@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1920" height="1080" viewBox="0 0 1920 1080">
   <!-- The boot menu's background: the wallpaper's night and reactor, pushed right so
-       the menu has the left half, and the name above where the menu sits. -->
+       the menu has the left half. The name is a label in theme.txt. -->
   <defs>
     <radialGradient id="bg" cx="1440" cy="560" r="1500" gradientUnits="userSpaceOnUse">
       <stop offset="0" stop-color="#0d2233"/>
@@ -27,7 +27,4 @@
     <circle r="98" fill="#bff3ff" fill-opacity="0.14"/>
   </g>
   <circle cx="1440" cy="560" r="330" fill="url(#glow)"/>
-  <text x="150" y="250" fill="#d8f6ff" font-family="Inter, DejaVu Sans, sans-serif" font-size="58"
-        font-weight="700" letter-spacing="18">JUNGEY OS</text>
-  <rect x="152" y="276" width="96" height="3" fill="#3cc8f2"/>
 </svg>

@@ -7,10 +7,28 @@ desktop-image-scale-method: "crop"
 desktop-color: "#050b12"
 terminal-font: "Inter Regular 16"
 
++ label {
+    left = 8%
+    top = 18%
+    width = 50%
+    height = 40
+    text = "J U N G E Y   O S"
+    font = "Inter Regular 24"
+    color = "#d8f6ff"
+}
+
++ image {
+    left = 8%
+    top = 18%+44
+    width = 96
+    height = 3
+    file = "underline.png"
+}
+
 + boot_menu {
     left = 8%
-    top = 32%
-    width = 44%
+    top = 30%
+    width = 56%
     height = 46%
     item_font = "Inter Regular 20"
     item_color = "#9fb7c6"

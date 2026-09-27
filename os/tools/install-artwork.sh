@@ -52,6 +52,7 @@ grub=$ROOT/usr/share/jungey-os/grub-theme
 render "$ART/boot/grub-background.svg" 1920 1080 "$grub/background.png"
 render "$ART/boot/grub-select.svg" 16 48 "$grub/select_c.png"
 render "$ART/boot/grub-select-w.svg" 6 48 "$grub/select_w.png"
+render "$ART/boot/grub-select-w.svg" 96 3 "$grub/underline.png"
 render "$ART/reactor.svg" 32 32 "$grub/icons/jungey.png"
 for class in os gnu-linux linux windows macosx memtest; do
     render "$ART/boot/grub-icon-os.svg" 32 32 "$grub/icons/$class.png"
