@@ -11,6 +11,7 @@ on:
     paths:
       - "os/**"
       - "src/**"
+      - "apps/**"
       - "pom.xml"
       - ".github/workflows/jungey-os.yml"
   workflow_dispatch:
@@ -50,10 +51,14 @@ jobs:
       - name: Build Jungey
         run: mvn -B -q -DskipTests package
 
+      - name: Build Jungey TV
+        run: mvn -B -q -f apps/tv/pom.xml package
+
       - name: Build the ISO
         run: |
           jar=$(ls target/jungey-*.jar | grep -v original- | head -1)
-          sudo JUNGEY_JAR="$PWD/$jar" ./os/build.sh
+          tv_jar=$(ls apps/tv/target/jungey-tv-*.jar | grep -v original- | head -1)
+          sudo JUNGEY_JAR="$PWD/$jar" TV_JAR="$PWD/$tv_jar" ./os/build.sh
           ls -lh os/out
           iso=$(ls os/out/*.iso)
           if [ "$(stat -c %s "$iso")" -ge 2147483648 ]; then
