@@ -1,8 +1,40 @@
 #!/bin/sh
-# Start the Jungey assistant on the system's Java 21 runtime.
-JAVA=/usr/lib/jvm/java-21-openjdk-amd64/bin/java
-[ -x "$JAVA" ] || JAVA=java
+# Start the Jungey assistant on Java 21.
+#
+# Only one Jungey runs at a time: starting it again brings the running one to the front
+# (which is what Super+J does), and a newer build takes over from an older one.
+#
+#   jungey              start Jungey, or summon the one already running
+#   jungey --autostart  the same, from the login autostart entry; skipped on the live USB
+
+if [ "$1" = --autostart ]; then
+    shift
+    # The live session is for trying and installing; the voice models would only
+    # compete with the installer for memory there.
+    grep -qw 'boot=casper' /proc/cmdline 2>/dev/null && exit 0
+fi
+
+# The build targets 21, which is not always the system default.
+JAVA=java
+for candidate in /usr/lib/jvm/java-21-openjdk-amd64/bin/java /usr/lib/jvm/*21*/bin/java; do
+    if [ -x "$candidate" ]; then
+        JAVA=$candidate
+        break
+    fi
+done
+
+# The jar the system shipped, unless you have built a newer one: run.sh and
+# scripts/install.sh keep a copy of each build here, so the menu, Super+J and the
+# login autostart all open the Jungey you last built rather than the one on the ISO.
 JAR=/usr/share/jungey/jungey.jar
+USER_JAR="${XDG_DATA_HOME:-$HOME/.local/share}/jungey/jungey.jar"
+if [ -f "$USER_JAR" ] && { [ ! -f "$JAR" ] || [ "$USER_JAR" -nt "$JAR" ]; }; then
+    JAR=$USER_JAR
+fi
+if [ ! -f "$JAR" ]; then
+    echo "jungey: no Jungey jar found - run ./run.sh in your jungey-AI checkout first" >&2
+    exit 1
+fi
 
 # Class data sharing: the first start records the classes Jungey loads, later starts map
 # them in at once. Java 21 does not rebuild an archive when the jar changes, so each

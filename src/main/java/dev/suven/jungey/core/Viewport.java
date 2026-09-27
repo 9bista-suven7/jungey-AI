@@ -42,11 +42,24 @@ public interface Viewport {
      */
     ReplyStream beginReply();
 
+    /**
+     * Keep listening between sentences without the wake word - a conversation - or stop.
+     *
+     * @return false if there is nothing to listen with: no microphone or no voice model
+     */
+    boolean converse(boolean on);
+
     interface ReplyStream {
         /** Text as it arrives, appended to the line on screen. */
         void text(String chunk);
 
         /** A complete sentence, queued to be spoken. */
         void sentence(String sentence);
+
+        /**
+         * True once a newer request has taken over. The rest of this reply is neither shown
+         * nor said, so the writer should stop producing it.
+         */
+        boolean cancelled();
     }
 }

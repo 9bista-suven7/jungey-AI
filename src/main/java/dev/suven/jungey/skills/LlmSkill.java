@@ -4,8 +4,12 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import dev.suven.jungey.core.Config;
+import dev.suven.jungey.core.Context;
+import dev.suven.jungey.core.Memory;
 import dev.suven.jungey.core.Skill;
 import dev.suven.jungey.core.SkillResult;
+import dev.suven.jungey.core.SysInfo;
+import dev.suven.jungey.core.Turn;
 import dev.suven.jungey.core.Viewport;
 
 import java.io.IOException;
@@ -15,9 +19,13 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayDeque;
 import java.util.Deque;
 import java.util.Iterator;
+import java.util.List;
+import java.util.Locale;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
@@ -51,9 +59,13 @@ public class LlmSkill implements Skill {
     private static final Pattern SENTENCE_END = Pattern.compile("[.!?]+[\"')\\]]*\\s+|\\n+");
 
     private final Viewport viewport;
+    private final Context context;
+    private final Memory memory;
 
-    public LlmSkill(Viewport viewport) {
+    public LlmSkill(Viewport viewport, Context context, Memory memory) {
         this.viewport = viewport;
+        this.context = context;
+        this.memory = memory;
     }
 
     @Override
@@ -132,6 +144,10 @@ public class LlmSkill implements Skill {
         system.put("role", "system");
         system.put("content", systemPrompt());
 
+        ObjectNode situation = messages.addObject();
+        situation.put("role", "system");
+        situation.put("content", situation());
+
         for (String[] turn : history) {
             ObjectNode u = messages.addObject();
             u.put("role", "user");
@@ -152,6 +168,7 @@ public class LlmSkill implements Skill {
                 .POST(HttpRequest.BodyPublishers.ofString(MAPPER.writeValueAsString(body)))
                 .build();
 
+        long turn = Turn.mine();
         HttpResponse<Stream<String>> res;
         try {
             res = CLIENT.send(req, HttpResponse.BodyHandlers.ofLines());
@@ -178,6 +195,9 @@ public class LlmSkill implements Skill {
         try (Stream<String> lines = res.body()) {
             Iterator<String> it = lines.iterator();
             while (it.hasNext()) {
+                // Asked something else since: stop here. Closing the stream tells Ollama to
+                // stop generating, which frees the model for the question that replaced this one.
+                if (Turn.superseded(turn) || (out != null && out.cancelled())) break;
                 String line = it.next();
                 if (line.isBlank()) continue;
 
@@ -209,6 +229,7 @@ public class LlmSkill implements Skill {
         }
 
         if (out == null) {
+            if (Turn.superseded(turn)) return SkillResult.of("");
             return SkillResult.error("The model returned nothing.");
         }
 
@@ -258,10 +279,56 @@ public class LlmSkill implements Skill {
     public static String systemPrompt() {
         Config cfg = Config.get();
         return """
-                You are Jungey, a personal assistant running locally on %s's Linux machine.
-                Your manner is calm, dry and economical - think of a very capable butler who
-                is never flustered. Address the user as %s when it fits naturally, but do not
-                overdo it. Answer in at most three sentences unless asked for detail. Never
-                mention that you are a language model.""".formatted(cfg.userName(), cfg.honorific());
+                You are Jungey, the personal assistant of %s, running locally on their Linux
+                machine, in the spirit of JARVIS: composed, quick, loyal, with a dry wit that
+                never gets in the way. Address the user as %s now and then, not in every line.
+                Talk the way a person speaks, not the way a document reads: short sentences, no
+                lists, headings or markdown unless asked. Answer in at most three sentences
+                unless asked for detail. When it helps, anticipate the next step and offer it
+                in a few words. Never mention that you are a language model.""".formatted(cfg.userName(), cfg.honorific());
+    }
+
+    private static final DateTimeFormatter NOW =
+            DateTimeFormatter.ofPattern("EEEE d MMMM yyyy, HH:mm", Locale.ENGLISH);
+    private static final DateTimeFormatter CLOCK = DateTimeFormatter.ofPattern("HH:mm", Locale.ENGLISH);
+
+    /**
+     * What Jungey can see right now: the time, the machine, the window in front, what it has
+     * been asked to remember, and what has just happened. Sent as its own message beside
+     * the system prompt, so exported training data keeps a prompt that does not change.
+     */
+    String situation() {
+        StringBuilder sb = new StringBuilder("Right now: ")
+                .append(LocalDateTime.now().format(NOW)).append(".\n");
+
+        long[] mem = SysInfo.memory();
+        sb.append(String.format("Machine: processor at %.0f%%, memory at %.0f%%",
+                Math.min(100, SysInfo.loadPerCore() * 100), 100.0 * mem[0] / Math.max(1, mem[1])));
+        int battery = SysInfo.batteryPercent();
+        if (battery >= 0) {
+            sb.append(", battery at ").append(battery).append('%')
+                    .append(SysInfo.onAcPower() ? " and charging" : " on battery");
+        }
+        sb.append(SysInfo.hasDefaultRoute() ? ", online.\n" : ", offline.\n");
+
+        String window = SysInfo.activeWindow();
+        if (!window.isBlank()) sb.append("The window in front is \"").append(window).append("\".\n");
+
+        List<String> facts = memory.facts();
+        if (!facts.isEmpty()) {
+            sb.append("Things the user asked you to remember, in their words:\n");
+            facts.stream().skip(Math.max(0, facts.size() - 40))
+                    .forEach(f -> sb.append("- ").append(f).append('\n'));
+        }
+
+        List<Context.Exchange> recent = context.since(Duration.ofMinutes(30), name());
+        if (!recent.isEmpty()) {
+            sb.append("What you have just done for them, outside this chat:\n");
+            recent.stream().skip(Math.max(0, recent.size() - 5)).forEach(e -> sb.append("- ")
+                    .append(e.at().format(CLOCK)).append(" they said \"").append(e.input())
+                    .append("\"; you answered \"").append(e.reply()).append("\"\n"));
+        }
+        sb.append("Use any of this only when it is relevant; never recite it.");
+        return sb.toString();
     }
 }

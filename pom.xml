@@ -6,7 +6,7 @@
 
   <groupId>dev.suven</groupId>
   <artifactId>jungey</artifactId>
-  <version>0.1.0</version>
+  <version>0.2.0</version>
   <name>Jungey</name>
   <description>Just a Unified Neural Gateway Engineered for You</description>
 
@@ -15,6 +15,10 @@
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <javafx.version>21.0.5</javafx.version>
     <main.class>dev.suven.jungey.Launcher</main.class>
+    <!-- Written into jungey-build.properties: a newer build takes over from an older one
+         that is still running. Maven cannot filter maven.build.timestamp directly. -->
+    <maven.build.timestamp.format>yyyy-MM-dd'T'HH:mm:ss'Z'</maven.build.timestamp.format>
+    <jungey.built>${maven.build.timestamp}</jungey.built>
   </properties>
 
   <dependencies>
@@ -43,6 +47,24 @@
   </dependencies>
 
   <build>
+    <!-- Only the build stamp is filtered; filtering the icons would corrupt them. -->
+    <resources>
+      <resource>
+        <directory>src/main/resources</directory>
+        <filtering>true</filtering>
+        <includes>
+          <include>jungey-build.properties</include>
+        </includes>
+      </resource>
+      <resource>
+        <directory>src/main/resources</directory>
+        <filtering>false</filtering>
+        <excludes>
+          <exclude>jungey-build.properties</exclude>
+        </excludes>
+      </resource>
+    </resources>
+
     <plugins>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>

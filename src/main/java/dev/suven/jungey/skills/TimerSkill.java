@@ -6,7 +6,9 @@ import dev.suven.jungey.core.SkillResult;
 import dev.suven.jungey.core.Viewport;
 
 import java.time.Duration;
+import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.Executors;
@@ -26,6 +28,12 @@ public class TimerSkill implements Skill {
 
     private static final Pattern DURATION = Pattern.compile(
             "(\\d+)\\s*(second|sec|minute|min|hour|hr)s?");
+
+    /** "at 5", "at 5pm", "at 17:30", "at 5:30 p.m." */
+    private static final Pattern CLOCK = Pattern.compile(
+            "\\bat\\s+(\\d{1,2})(?::(\\d{2}))?\\s*(am|pm|a\\.m\\.?|p\\.m\\.?)?(?=\\s|$|[.,!?])");
+
+    private static final DateTimeFormatter SPOKEN_CLOCK = DateTimeFormatter.ofPattern("h:mm a", java.util.Locale.ENGLISH);
 
     private final Viewport viewport;
     private final ScheduledExecutorService clock = Executors.newSingleThreadScheduledExecutor(r -> {
@@ -77,16 +85,19 @@ public class TimerSkill implements Skill {
         if (s.matches(".*\\bcancel\\b.*")) return cancelAll();
 
         Duration delay = parseDuration(s);
-        if (delay == null || delay.isZero()) {
-            return SkillResult.error("How long? Try \"set a timer for 10 minutes\".");
+        LocalDateTime at = delay == null ? parseClock(s, LocalDateTime.now()) : null;
+        if (at != null) delay = Duration.between(LocalDateTime.now(), at);
+        if (delay == null || delay.isZero() || delay.isNegative()) {
+            return SkillResult.error("How long? Try \"set a timer for 10 minutes\" or \"remind me at 5pm to call home\".");
         }
 
         String label = parseLabel(s);
         schedule(delay, label);
 
+        String when = at != null ? "at " + at.format(SPOKEN_CLOCK) : "in " + describe(delay);
         String spoken = label.isBlank()
-                ? Personality.affirm() + " Timer set for " + describe(delay) + "."
-                : Personality.affirm() + " I will remind you to " + label + " in " + describe(delay) + ".";
+                ? Personality.affirm() + (at != null ? " I will call you " + when + "." : " Timer set for " + describe(delay) + ".")
+                : Personality.affirm() + " I will remind you to " + label + " " + when + ".";
         return SkillResult.of(spoken);
     }
 
@@ -104,6 +115,17 @@ public class TimerSkill implements Skill {
 
         synchronized (pending) {
             pending.add(new Pending(label, due, task));
+        }
+    }
+
+    /** What is still to come, as "stretch at 10:30", soonest first - for briefings. */
+    public List<String> pendingLines() {
+        synchronized (pending) {
+            pending.removeIf(p -> p.task().isDone());
+            return pending.stream()
+                    .sorted(java.util.Comparator.comparing(p -> p.task().getDelay(TimeUnit.MILLISECONDS)))
+                    .map(p -> (p.label().isBlank() ? "a timer" : p.label()) + " at " + p.due().withNano(0).withSecond(0))
+                    .toList();
         }
     }
 
@@ -151,15 +173,50 @@ public class TimerSkill implements Skill {
         return found ? total : null;
     }
 
+    /**
+     * The next time the clock reads what was said. Without am or pm, "at 5" is whichever
+     * five o'clock comes next - nobody sets a reminder for twelve hours' time by accident.
+     */
+    static LocalDateTime parseClock(String s, LocalDateTime now) {
+        Matcher m = CLOCK.matcher(s);
+        if (!m.find()) return null;
+
+        int hour = Integer.parseInt(m.group(1));
+        int minute = m.group(2) == null ? 0 : Integer.parseInt(m.group(2));
+        String half = m.group(3) == null ? "" : m.group(3).replace(".", "");
+        if (hour > 23 || minute > 59 || (!half.isEmpty() && (hour < 1 || hour > 12))) return null;
+
+        List<Integer> hours = new ArrayList<>();
+        if (half.equals("am")) hours.add(hour % 12);
+        else if (half.equals("pm")) hours.add(hour % 12 + 12);
+        else if (hour <= 12) {
+            hours.add(hour % 12);
+            hours.add(hour % 12 + 12);
+        } else hours.add(hour);
+
+        LocalDateTime best = null;
+        for (int h : hours) {
+            LocalDateTime t = now.withHour(h).withMinute(minute).withSecond(0).withNano(0);
+            if (!t.isAfter(now)) t = t.plusDays(1);
+            if (best == null || t.isBefore(best)) best = t;
+        }
+        return best;
+    }
+
     /** "remind me in 5 minutes to stretch" -> "stretch" */
-    private static String parseLabel(String s) {
+    static String parseLabel(String s) {
+        String label = "";
         Matcher m = Pattern.compile("\\bto\\s+(.+)$").matcher(s);
-        if (m.find()) return m.group(1).trim();
-
-        m = Pattern.compile("\\bremind me\\s+(?:about|that)\\s+(.+?)(?:\\s+in\\b.*)?$").matcher(s);
-        if (m.find()) return m.group(1).trim();
-
-        return "";
+        if (m.find()) {
+            label = m.group(1).trim();
+        } else {
+            m = Pattern.compile("\\bremind me\\s+(?:about|that)\\s+(.+)$").matcher(s);
+            if (m.find()) label = m.group(1).trim();
+        }
+        // "remind me to stretch in 5 minutes": the when belongs to the timer, not the label.
+        return label.replaceFirst("\\s+(?:in|after)\\s+\\d+\\s*(?:second|sec|minute|min|hour|hr)s?\\b.*$", "")
+                .replaceFirst("\\s+at\\s+\\d{1,2}(?::\\d{2})?\\s*(?:am|pm|a\\.m\\.?|p\\.m\\.?)?\\s*$", "")
+                .trim();
     }
 
     private static String describe(Duration d) {
