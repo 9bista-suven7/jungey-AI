@@ -13,9 +13,11 @@ import java.security.MessageDigest;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.HexFormat;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -88,6 +90,22 @@ public final class Speaker {
 
     /** Said once, the first time a hosted call fails - nobody needs it every sentence. */
     private volatile boolean hostedComplaint;
+
+    /** Lines up to this long are worth keeping as audio: fillers, acknowledgements, "Yes?". */
+    private static final int STOCK_MAX_CHARS = 40;
+
+    /**
+     * Short lines already synthesised, so the ones said over and over - "Right, okay.",
+     * "One moment." - start the instant they are wanted instead of after a trip to Piper.
+     * A filler that arrives late is worse than none.
+     */
+    private final Map<String, byte[]> stock = java.util.Collections.synchronizedMap(
+            new LinkedHashMap<>(64, 0.75f, true) {
+                @Override
+                protected boolean removeEldestEntry(Map.Entry<String, byte[]> eldest) {
+                    return size() > 64;
+                }
+            });
 
     public Speaker() {
         this.engine = detect();
@@ -197,7 +215,7 @@ public final class Speaker {
     /** Silence or restore speech for this session, and remember the choice for the next one. */
     public void setMuted(boolean value) {
         muted = value;
-        if (value) stop();
+        if (value) cut();
         Config cfg = Config.get();
         cfg.set("voice.enabled", String.valueOf(!value));
         cfg.save();
@@ -217,8 +235,7 @@ public final class Speaker {
 
         int queuedIn = generation.get();
         pending.incrementAndGet();
-        Future<byte[]> ahead = piperd == null ? null
-                : synth.submit(() -> queuedIn == generation.get() ? piperd.synthesise(clean) : null);
+        Future<byte[]> ahead = clipFor(clean, queuedIn);
         voice.submit(() -> {
             try {
                 if (queuedIn != generation.get()) return;
@@ -227,7 +244,7 @@ public final class Speaker {
                 if (clip != null) {
                     audio.play(clip);
                 } else {
-                    speakNow(clean);
+                    speakNow(clean, queuedIn);
                 }
             } catch (Exception e) {
                 System.err.println("[jungey] speech failed: " + e.getMessage());
@@ -235,6 +252,37 @@ public final class Speaker {
                 pending.decrementAndGet();
             }
         });
+    }
+
+    /** The line as audio from the running Piper - at once if it is a stock line - or null. */
+    private Future<byte[]> clipFor(String clean, int queuedIn) {
+        if (piperd == null) return null;
+        byte[] kept = clean.length() <= STOCK_MAX_CHARS ? stock.get(clean) : null;
+        if (kept != null) return CompletableFuture.completedFuture(kept);
+
+        return synth.submit(() -> {
+            if (queuedIn != generation.get()) return null;
+            byte[] clip = piperd.synthesise(clean);
+            if (clip != null && clip.length > 0 && clean.length() <= STOCK_MAX_CHARS) stock.put(clean, clip);
+            return clip;
+        });
+    }
+
+    /**
+     * Synthesise stock lines ahead of need, in the background. Call it once the start-up
+     * talking is over: the synthesiser works through its queue in order, and a greeting
+     * should not wait behind a dozen fillers.
+     */
+    public void prepare(List<String> lines) {
+        if (piperd == null || muted) return;
+        for (String line : lines) {
+            String clean = Spoken.forSpeech(line, STOCK_MAX_CHARS);
+            if (clean.isBlank() || clean.length() > STOCK_MAX_CHARS || stock.containsKey(clean)) continue;
+            synth.submit(() -> {
+                byte[] clip = piperd.synthesise(clean);
+                if (clip != null && clip.length > 0) stock.put(clean, clip);
+            });
+        }
     }
 
     /** A line from the running Piper, or null to speak it some other way. */
@@ -253,13 +301,13 @@ public final class Speaker {
         }
     }
 
-    private void speakNow(String text) throws Exception {
+    private void speakNow(String text, int queuedIn) throws Exception {
         switch (engine) {
             case PIPER -> speakPiper(text);
             case HF -> {
-                if (!speakHosted(text) && espeakReady()) speakEspeak(text);
+                if (!speakHosted(text, queuedIn) && espeakReady()) speakEspeak(text, queuedIn);
             }
-            case ESPEAK -> speakEspeak(text);
+            case ESPEAK -> speakEspeak(text, queuedIn);
             case NONE -> {
                 // Nothing to do; say() already returned for this case.
             }
@@ -299,12 +347,12 @@ public final class Speaker {
         String lengthFlag = firstSupported("--length-scale", "--length_scale");
         if (lengthFlag != null) {
             cmd.add(lengthFlag);
-            cmd.add(Config.get().str("voice.piper.speed", "1.0"));
+            cmd.add(Config.get().str("voice.piper.speed", "0.85"));
         }
         String silenceFlag = firstSupported("--sentence-silence", "--sentence_silence");
         if (silenceFlag != null) {
             cmd.add(silenceFlag);
-            cmd.add(Config.get().str("voice.piper.pause", "0.35"));
+            cmd.add(Config.get().str("voice.piper.pause", "0.15"));
         }
         return cmd;
     }
@@ -358,7 +406,7 @@ public final class Speaker {
     // ---------------------------------------------------------- hugging face
 
     /** @return true if the hosted voice actually spoke; false means fall back to a local one. */
-    private boolean speakHosted(String text) throws Exception {
+    private boolean speakHosted(String text, int queuedIn) throws Exception {
         byte[] clip = cached(text);
 
         if (clip == null) {
@@ -378,7 +426,8 @@ public final class Speaker {
             cache(text, clip);
         }
 
-        audio.play(clip);
+        // A second on the network is long enough for the conversation to have moved on.
+        if (queuedIn == generation.get()) audio.play(clip);
         return true;
     }
 
@@ -432,13 +481,13 @@ public final class Speaker {
      * Received Pronunciation with a lower pitch and a little word gap is about as close
      * to human as formant synthesis gets.
      */
-    private void speakEspeak(String text) throws Exception {
+    private void speakEspeak(String text, int queuedIn) throws Exception {
         Config cfg = Config.get();
         List<String> cmd = List.of(
                 onPath("espeak-ng") ? resolve("espeak-ng") : resolve("espeak"),
                 "--stdout",
                 "-v", cfg.str("voice.espeak.voice", "en-gb-x-rp"),
-                "-s", String.valueOf(cfg.intv("voice.rate", 165)),
+                "-s", String.valueOf(cfg.intv("voice.rate", 175)),
                 "-p", String.valueOf(cfg.intv("voice.espeak.pitch", 45)),
                 "-g", String.valueOf(cfg.intv("voice.espeak.gap", 3)));
 
@@ -449,7 +498,8 @@ public final class Speaker {
         feed(p, text);
 
         try {
-            audio.play(AudioOut.drain(p.getInputStream()));
+            byte[] clip = AudioOut.drain(p.getInputStream());
+            if (queuedIn == generation.get()) audio.play(clip);
             p.waitFor();
         } finally {
             p.destroy();
@@ -472,10 +522,21 @@ public final class Speaker {
         writer.start();
     }
 
-    /** Interrupt whatever is being said - used when a new command arrives mid-sentence. */
+    /**
+     * Stop talking because something else now matters more - a new command, or the name
+     * said mid-sentence. The voice trails off over a fraction of a second instead of being
+     * cut mid-syllable, and nothing queued before this is said, so a new reply never ends
+     * up talking over the tail of the old one.
+     */
     public void stop() {
         generation.incrementAndGet();
-        audio.stop();
+        audio.stop(true);
+    }
+
+    /** Silence at once, mid-word: for muting and for shutting down. */
+    private void cut() {
+        generation.incrementAndGet();
+        audio.stop(false);
 
         Process p = current;
         if (p != null && p.isAlive()) p.destroy();
@@ -493,9 +554,10 @@ public final class Speaker {
     }
 
     public void shutdown() {
-        stop();
+        cut();
         voice.shutdownNow();
         synth.shutdownNow();
+        audio.close();
         if (piperd != null) piperd.close();
     }
 }

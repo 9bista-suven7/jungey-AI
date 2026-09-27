@@ -109,9 +109,13 @@ restart.
   machine, so it needs virtualization (VT-x / AMD-V) turned on in the firmware
   settings; everything else it needs is already installed. Claude updates with
   the rest of the system: `sudo apt update && sudo apt upgrade`.
-- **Jungey:** Super+J or the arc-reactor icon in the panel. Voice input, the
-  local language model and the vision model are optional downloads — see the
-  [main README](../README.md#optional-extras).
+- **Jungey:** starts when you log in; Super+J or the arc-reactor icon brings it
+  to the front and starts listening. Voice input, the local language model and
+  the vision model are optional downloads — see the
+  [main README](../README.md#optional-extras). To run newer Jungey code, `git pull`
+  in a clone and run `./run.sh` once: from then on the menu, Super+J and the
+  login start all open that build (`scripts/install.sh` first, on a system
+  installed before Jungey 0.2).
 - **Keys:** Super opens the menu, Super+E files, Super+T or Ctrl+Alt+T terminal,
   Print screenshots, Ctrl+Alt+L locks.
 
@@ -132,7 +136,7 @@ sudo ./os/tools/apply-look.sh
 ```
 
 It installs any missing packages, refreshes the theme, panel, terminal,
-wallpaper and zsh setup, and switches your account to zsh. Your own desktop
+wallpaper and zsh setup and the Jungey launcher, and switches your account to zsh. Your own desktop
 settings are backed up to `~/.config/jungey-look-backup-*` first. Log out and
 back in afterwards.
 

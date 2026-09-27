@@ -5,7 +5,8 @@
 #   sudo ./os/tools/apply-look.sh
 #
 # It installs anything in config/packages.list that is missing, refreshes the
-# system-wide defaults (theme, panel, terminal, wallpaper, zsh), switches your
+# system-wide defaults (theme, panel, terminal, wallpaper, zsh, the Jungey
+# launcher and its login entry), switches your
 # account to zsh, and resets your own desktop settings so the new defaults show.
 # Those settings are backed up first, and nothing else in your home changes.
 set -euo pipefail
@@ -39,6 +40,11 @@ for size in 16 32 48 128 256; do
 done
 gtk-update-icon-cache -q -f /usr/share/icons/hicolor || true
 gtk-update-icon-cache -q -f /usr/local/share/icons/hicolor || true
+
+# The Jungey launcher and its login entry. The launcher opens a newer jar built from
+# a checkout (./run.sh keeps one in ~/.local/share/jungey) in place of the packaged one.
+install -Dm755 "$OS_DIR/debs/jungey/usr/bin/jungey" /usr/bin/jungey
+install -Dm644 "$OS_DIR/debs/jungey/etc/xdg/autostart/jungey.desktop" /etc/xdg/autostart/jungey.desktop
 
 # The desktop and Claude hooks only touch system defaults, so they are safe to
 # rerun on an installed system (the others set up identity and the live image).

@@ -54,6 +54,12 @@ public final class Listener {
     /** How long to keep listening for a command after the wake word before giving up. */
     private static final long COMMAND_WINDOW_MS = 8_000;
 
+    /**
+     * How long a conversation waits for the next sentence. Silence this long means the
+     * conversation is over, and the name is needed again.
+     */
+    private static final long CONVERSATION_WINDOW_MS = 45_000;
+
     /** How many words may precede the wake phrase - enough for a "hey" or an "ok". */
     private static final int LEADING_SLACK = 1;
 
@@ -86,6 +92,15 @@ public final class Listener {
 
     /** Whether the open window came from hearing the name, rather than from a follow-up. */
     private volatile boolean wokenByName;
+
+    /** In a conversation: every reply leaves the microphone open, and no name is needed. */
+    private volatile boolean conversing;
+
+    /** The open window came from the name cutting in over Jungey's own voice. */
+    private volatile boolean bargedIn;
+
+    /** Called when the name cuts in while Jungey is talking. */
+    private volatile Runnable onBargeIn = () -> { };
 
     /** The last couple of seconds of microphone audio, oldest first. */
     private final Deque<byte[]> preroll = new ArrayDeque<>();
@@ -138,6 +153,46 @@ public final class Listener {
         return wokenByName;
     }
 
+    /** True during a conversation - see {@link #converse}. */
+    public boolean conversing() {
+        return conversing;
+    }
+
+    /** What to do when the name is said over Jungey's own voice: stop talking, forget the old reply. */
+    public void onBargeIn(Runnable action) {
+        this.onBargeIn = action;
+    }
+
+    /**
+     * Hold a conversation: keep the microphone open after each reply, so nothing needs the
+     * name until it is ended - by "that's all", or by a long enough silence.
+     *
+     * @return false when there is nothing to listen with
+     */
+    public boolean converse(boolean on) {
+        if (!on) {
+            conversing = false;
+            return true;
+        }
+        if (!running || state == State.OFF) return false;
+        conversing = true;
+        followUp();
+        return true;
+    }
+
+    private long window() {
+        return conversing ? CONVERSATION_WINDOW_MS : COMMAND_WINDOW_MS;
+    }
+
+    /**
+     * Whether the name may cut Jungey off mid-sentence. Only with a grammar to wake on: the
+     * microphone hears Jungey's own voice too, and with the whole dictionary open some
+     * word of its reply would eventually sound like the name.
+     */
+    private boolean bargeIn() {
+        return grammarWake && Config.get().bool("voice.input.bargeIn");
+    }
+
     /** Which ears are in use, for the console: how it wakes, and what transcribes. */
     public String inputLabel() {
         return (grammarWake ? "grammar wake" : "open wake") + ", " + transcriber.label();
@@ -179,6 +234,7 @@ public final class Listener {
     }
 
     private void setState(State next) {
+        if (next != State.LISTENING) bargedIn = false;
         if (state != next) {
             state = next;
             onState.accept(next);
@@ -270,28 +326,56 @@ public final class Listener {
      */
     public void followUp() {
         if (!running || state == State.OFF) return;
-        commandDeadline = System.currentTimeMillis() + COMMAND_WINDOW_MS;
+        commandDeadline = System.currentTimeMillis() + window();
         wokenByName = false;
         setState(State.LISTENING);
     }
 
     private void listen(TargetDataLine line, Recognizer wake, Recognizer command) {
         byte[] buffer = new byte[4096];
+        boolean wasSpeaking = false;
 
         while (running && !Thread.currentThread().isInterrupted()) {
             int read = line.read(buffer, 0, buffer.length);
             if (read <= 0) continue;
 
-            // Never transcribe Jungey's own voice, or it answers itself.
-            if (speaker.speaking()) {
+            boolean speaking = speaker.speaking();
+            if (wasSpeaking && !speaking) {
+                // What the wake recogniser heard over the voice is not the start of anything.
                 wake.reset();
+            }
+            wasSpeaking = speaking;
+
+            // Never transcribe Jungey's own voice, or it answers itself - but do listen for
+            // the name, so Jungey can be interrupted the way a person can.
+            if (speaking) {
+                if (state == State.LISTENING && bargedIn) {
+                    // Just cut in: the voice is trailing off; what follows is the command.
+                    takeCommand(line, command, buffer, read);
+                    continue;
+                }
+                if (state == State.WAITING && bargeIn() && heardNameOverVoice(wake, buffer, read)) {
+                    wake.reset();
+                    command.reset();
+                    forget();
+                    commandDeadline = System.currentTimeMillis() + COMMAND_WINDOW_MS;
+                    wokenByName = true;
+                    bargedIn = true;
+                    speaker.stop();
+                    onBargeIn.run();
+                    setState(State.LISTENING);
+                    continue;
+                }
                 command.reset();
                 forget();
-                line.flush();
+                if (!bargeIn()) {
+                    wake.reset();
+                    line.flush();
+                }
                 // A follow-up window counts from when the voice stops, not from when the text
                 // finished typing - otherwise a long spoken reply uses the whole window up.
                 if (state == State.LISTENING) {
-                    commandDeadline = System.currentTimeMillis() + COMMAND_WINDOW_MS;
+                    commandDeadline = System.currentTimeMillis() + window();
                 }
                 continue;
             }
@@ -308,18 +392,31 @@ public final class Listener {
 
     /** WAITING: the only question is whether the name was said. */
     private void waitForWake(Recognizer command, Recognizer wake, byte[] buffer, int read) {
-        boolean woken;
-        if (wake.acceptWaveForm(buffer, read)) {
-            woken = afterWakeWord(textOf(wake.getResult(), "text")) != null;
-        } else {
-            // Partial results let the wake word register before the speaker pauses, so a
-            // command said in the same breath is not left waiting for silence first.
-            woken = afterWakeWord(textOf(wake.getPartialResult(), "partial")) != null;
-        }
-        if (!woken) return;
+        if (!heardName(wake, buffer, read)) return;
 
         wake.reset();
         openCommandWindow(command);
+    }
+
+    /**
+     * The name, said over Jungey's own voice. There is no pause before it for the recogniser
+     * to start a new utterance on, so it arrives after a run of unrecognised words; with a
+     * grammar holding nothing but the name, any word it does recognise is the name.
+     */
+    private boolean heardNameOverVoice(Recognizer wake, byte[] buffer, int read) {
+        String heard = wake.acceptWaveForm(buffer, read)
+                ? textOf(wake.getResult(), "text")
+                : textOf(wake.getPartialResult(), "partial");
+        return afterWakeWord(heard.replace("[unk]", " ").trim()) != null;
+    }
+
+    private boolean heardName(Recognizer wake, byte[] buffer, int read) {
+        if (wake.acceptWaveForm(buffer, read)) {
+            return afterWakeWord(textOf(wake.getResult(), "text")) != null;
+        }
+        // Partial results let the wake word register before the speaker pauses, so a
+        // command said in the same breath is not left waiting for silence first.
+        return afterWakeWord(textOf(wake.getPartialResult(), "partial")) != null;
     }
 
     /** Hand the recogniser and the clip everything heard just before the wake word landed. */
@@ -339,7 +436,7 @@ public final class Listener {
         // Spent: keeping it would seed the next command with the tail of this one.
         clearPreroll();
 
-        commandDeadline = System.currentTimeMillis() + COMMAND_WINDOW_MS;
+        commandDeadline = System.currentTimeMillis() + window();
         wokenByName = true;
         setState(State.LISTENING);
     }
@@ -355,6 +452,8 @@ public final class Listener {
                 command.reset();
                 capture.reset();
                 clearPreroll();
+                // Nothing said for the whole window: a conversation has run its course.
+                conversing = false;
                 setState(State.WAITING);
             }
             return;
@@ -390,7 +489,7 @@ public final class Listener {
 
         if (spoken.isBlank()) {
             // Only the wake word - keep waiting for the command itself.
-            commandDeadline = System.currentTimeMillis() + COMMAND_WINDOW_MS;
+            commandDeadline = System.currentTimeMillis() + window();
             return;
         }
 

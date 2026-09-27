@@ -1,9 +1,14 @@
 package dev.suven.jungey;
 
 import dev.suven.jungey.core.Brain;
+import dev.suven.jungey.core.Build;
 import dev.suven.jungey.core.Config;
 import dev.suven.jungey.core.Personality;
+import dev.suven.jungey.core.SingleInstance;
+import dev.suven.jungey.core.Skill;
 import dev.suven.jungey.core.SkillResult;
+import dev.suven.jungey.core.Turn;
+import dev.suven.jungey.skills.BriefingSkill;
 import dev.suven.jungey.ui.CameraView;
 import dev.suven.jungey.ui.ConsoleView;
 import dev.suven.jungey.ui.ReactorView;
@@ -38,9 +43,14 @@ import javafx.util.Duration;
  */
 public class JungeyApp extends Application implements dev.suven.jungey.core.Viewport {
 
+    /** This process's claim to be the one running Jungey - see {@link SingleInstance}. */
+    private static SingleInstance instance;
+
     private final Speaker speaker = new Speaker();
     private final Brain brain = new Brain(speaker, this);
     private final CameraView camera = new CameraView();
+
+    private Stage stage;
 
     private ConsoleView console;
     private ReactorView reactor;
@@ -52,11 +62,18 @@ public class JungeyApp extends Application implements dev.suven.jungey.core.View
     private boolean earsAnnounced;
     private boolean spokenTo;
 
+    /** Requests handed to the brain and not yet answered. */
+    private int inFlight;
+
+    /** The name was said over Jungey's own voice; the next command changes the subject. */
+    private boolean cutIn;
+
     private final java.util.List<String> history = new java.util.ArrayList<>();
     private int historyIndex;
 
     @Override
     public void start(Stage stage) {
+        this.stage = stage;
         Config cfg = Config.get();
 
         reactor = new ReactorView(132);
@@ -67,6 +84,11 @@ public class JungeyApp extends Application implements dev.suven.jungey.core.View
                     submit(heard);
                 }),
                 state -> Platform.runLater(() -> onEars(state)));
+        // Named mid-sentence: whatever was being answered is dropped, not just silenced.
+        listener.onBargeIn(() -> {
+            brain.interrupt();
+            Platform.runLater(() -> cutIn = true);
+        });
         statusBar = new StatusBar(speaker::statusLabel, this::earsLabel);
 
         BorderPane root = new BorderPane();
@@ -108,8 +130,46 @@ public class JungeyApp extends Application implements dev.suven.jungey.core.View
         statusBar.start();
         input.requestFocus();
 
+        if (instance != null) {
+            instance.listen(new SingleInstance.Handler() {
+                @Override
+                public void show() {
+                    Platform.runLater(JungeyApp.this::summon);
+                }
+
+                @Override
+                public void handOver() {
+                    Platform.runLater(() -> {
+                        console.addSystem("A newer Jungey is starting - handing over.");
+                        shutdown();
+                    });
+                }
+            });
+        }
+
         boot();
         startEars();
+    }
+
+    /**
+     * Jungey was opened again - Super+J, the menu, the desktop icon - while already running.
+     * Come to the front and listen straight away, so the shortcut doubles as push-to-talk.
+     */
+    private void summon() {
+        stage.setIconified(false);
+        stage.show();
+        stage.toFront();
+        // Window managers are wary of windows asking for focus; a moment on top gets it seen.
+        stage.setAlwaysOnTop(true);
+        stage.setAlwaysOnTop(Config.get().bool("ui.alwaysOnTop"));
+        stage.requestFocus();
+        input.requestFocus();
+
+        if (speaker.speaking() || inFlight > 0) return;   // busy answering; being in front is enough
+        String line = Personality.summoned();
+        console.addJungey(line);
+        speaker.say(line);
+        listener.followUp();
     }
 
     /**
@@ -136,7 +196,7 @@ public class JungeyApp extends Application implements dev.suven.jungey.core.View
         return switch (listener.state()) {
             case OFF -> "off";
             case WAITING -> "wake";
-            case LISTENING -> "live";
+            case LISTENING -> listener.conversing() ? "talk" : "live";
         };
     }
 
@@ -146,6 +206,11 @@ public class JungeyApp extends Application implements dev.suven.jungey.core.View
             // reply that offered it is still being spoken, and cutting that off is how a
             // spoken answer ends up truncated.
             if (listener.wokenByName()) {
+                if (speaker.speaking() || inFlight > 0) {
+                    // Addressed while still answering: drop the old answer, not just its sound.
+                    brain.interrupt();
+                    cutIn = true;
+                }
                 speaker.stop();
                 console.addSystem("Yes?");
                 reactor.setState(ReactorView.State.THINKING);
@@ -166,7 +231,7 @@ public class JungeyApp extends Application implements dev.suven.jungey.core.View
         Label title = new Label("JUNGEY");
         title.getStyleClass().add("title");
 
-        Label subtitle = new Label("local assistant · v0.1.0");
+        Label subtitle = new Label("local assistant · v" + Build.version());
         subtitle.getStyleClass().add("subtitle");
 
         Region spacer = new Region();
@@ -254,9 +319,39 @@ public class JungeyApp extends Application implements dev.suven.jungey.core.View
                     String greeting = Personality.greeting();
                     console.addJungey(greeting);
                     speaker.say(greeting);
+                    briefIfFirstToday();
                 }));
 
         timeline.play();
+    }
+
+    /**
+     * The first start of the day follows the greeting with a briefing; later starts leave it
+     * at hello. Either way the sentinel starts watching once the talking is done.
+     */
+    private void briefIfFirstToday() {
+        Runnable settle = () -> {
+            brain.startSentinel();
+            // Fillers ready as audio before they are wanted - after the greeting, not ahead of it.
+            speaker.prepare(Personality.stockLines());
+        };
+
+        if (!Config.get().bool("briefing.onBoot") || !BriefingSkill.firstStartToday()) {
+            settle.run();
+            return;
+        }
+        inFlight++;
+        long turn = Turn.latest();
+        brain.bootBriefing(false).thenAccept(result -> Platform.runLater(() -> {
+            inFlight--;
+            // Spoken to before the briefing was ready: they have moved on, so it waits on screen.
+            if (Turn.superseded(turn)) {
+                if (result.ok()) console.addDetail(result.hasDetail() ? result.detail() : result.speech());
+            } else {
+                render(result, turn);
+            }
+            settle.run();
+        }));
     }
 
     /** Step through past commands. index == history.size() is the empty prompt. */
@@ -279,7 +374,15 @@ public class JungeyApp extends Application implements dev.suven.jungey.core.View
         input.clear();
         console.addUser(text);
         transcribe("you", text);
-        speaker.stop();   // cut off whatever is being said - a new command takes priority
+
+        // Cutting across an answer still being given - or being worked out. The old one is
+        // let go of gently, and the new one opens with a word, as a person changes subject.
+        boolean changingSubject = speaker.speaking() || inFlight > 0 || cutIn;
+        cutIn = false;
+        // Old reply first, voice second: a model mid-answer could otherwise slip one more
+        // sentence into the queue between the two.
+        if (changingSubject) brain.interrupt();
+        speaker.stop();
 
         if (text.trim().equalsIgnoreCase("exit") || text.trim().equalsIgnoreCase("quit")) {
             String bye = Personality.farewell();
@@ -299,16 +402,44 @@ public class JungeyApp extends Application implements dev.suven.jungey.core.View
         boolean slow = brain.isSlow(text);
         reactor.setState(ReactorView.State.THINKING);
 
-        if (slow) {
-            String wait = Personality.thinking();
-            console.addSystem(wait);
+        String filler = null;
+        if (changingSubject && wantsFiller(brain.route(text))) {
+            filler = Personality.transition();
+        } else if (slow && spokenTo) {
+            // Asked aloud, silence while the answer is fetched sounds like not being heard.
+            filler = Personality.thinking();
         }
+        if (filler != null) speaker.say(filler);
+        if (filler != null || slow) console.addSystem(filler != null ? filler : Personality.thinking());
 
-        brain.handle(text).thenAccept(result -> Platform.runLater(() -> render(result)));
+        inFlight++;
+        var answer = brain.handle(text);
+        long turn = Turn.latest();   // handle() has just begun it
+        answer.thenAccept(result -> Platform.runLater(() -> {
+            inFlight--;
+            render(result, turn);
+        }));
     }
 
-    private void render(SkillResult result) {
+    /**
+     * Whether a change of subject should open with a filler. Not for "stop" or "that's all",
+     * where the silence is the point, nor for "thanks", which is already the small word.
+     */
+    private static boolean wantsFiller(Skill skill) {
+        return skill == null || !java.util.Set.of("voice", "chatter", "training").contains(skill.name());
+    }
+
+    private void render(SkillResult result, long turn) {
         transcribe("jungey", result.speech());
+
+        // Asked something else since: the answer is kept on screen but not said, so two
+        // replies never talk over each other.
+        if (Turn.superseded(turn)) {
+            if (!result.streamed() && result.ok() && !result.speech().isBlank()) {
+                console.addSystem("(earlier) " + result.speech());
+            }
+            return;
+        }
 
         // Already shown and spoken while it arrived - nothing left but to settle.
         if (result.streamed()) {
@@ -428,20 +559,37 @@ public class JungeyApp extends Application implements dev.suven.jungey.core.View
 
     @Override
     public ReplyStream beginReply() {
-        java.util.function.Consumer<String> line = console.addJungeyLive();
-        Platform.runLater(() -> reactor.setState(ReactorView.State.SPEAKING));
+        // The turn this reply belongs to, fixed now: if another request starts while it is
+        // still arriving, the rest of it is dropped rather than said over the new answer.
+        long turn = Turn.mine();
+        boolean stale = Turn.superseded(turn);
+        java.util.function.Consumer<String> line = stale ? chunk -> { } : console.addJungeyLive();
+        if (!stale) Platform.runLater(() -> reactor.setState(ReactorView.State.SPEAKING));
 
         return new ReplyStream() {
             @Override
             public void text(String chunk) {
-                line.accept(chunk);
+                if (!cancelled()) line.accept(chunk);
             }
 
             @Override
             public void sentence(String sentence) {
-                speaker.say(sentence);
+                if (!cancelled()) speaker.say(sentence);
+            }
+
+            @Override
+            public boolean cancelled() {
+                return Turn.superseded(turn);
             }
         };
+    }
+
+    @Override
+    public boolean converse(boolean on) {
+        // Ending one: the reply to "that's all" must not reopen the microphone. This runs
+        // while the skill does, so it reaches the UI thread before the reply is rendered.
+        if (!on) Platform.runLater(() -> spokenTo = false);
+        return listener.converse(on);
     }
 
     /** The window is often not what is being looked at, so it goes to the desktop too. */
@@ -465,12 +613,19 @@ public class JungeyApp extends Application implements dev.suven.jungey.core.View
         listener.stop();
         speaker.shutdown();
         brain.shutdown();
+        // Last, so a Jungey waiting to take over starts once the microphone and speaker are free.
+        if (instance != null) instance.close();
         Platform.exit();
         // JavaFX will not always tear down AWT's Desktop helper threads on its own.
         System.exit(0);
     }
 
     public static void main(String[] args) {
+        instance = SingleInstance.claim(Build.stamp());
+        if (instance == null) {
+            System.out.println("[jungey] Jungey is already running - brought it to the front.");
+            return;
+        }
         launch(args);
     }
 }

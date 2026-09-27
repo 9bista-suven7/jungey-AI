@@ -34,13 +34,14 @@ public final class Config {
         props.setProperty("voice.enabled", "true");
         // auto keeps speech on this machine: piper if installed, espeak-ng if not.
         props.setProperty("voice.engine", "auto");   // auto | piper | hf | espeak | none
-        props.setProperty("voice.rate", "165");
+        props.setProperty("voice.rate", "175");      // espeak words a minute; people talk at 150-180
         props.setProperty("voice.maxChars", "400");  // longer replies are left on screen
         props.setProperty("voice.cache", "true");    // keep hosted audio for repeated lines
         props.setProperty("voice.piper.model",
                 System.getProperty("user.home") + "/.local/share/piper/en_GB-alan-medium.onnx");
-        props.setProperty("voice.piper.speed", "1.0");    // above 1 is slower, below is quicker
-        props.setProperty("voice.piper.pause", "0.35");   // seconds of silence between sentences
+        // Piper voices read at an announcer's pace at 1.0; 0.85 is how people actually talk.
+        props.setProperty("voice.piper.speed", "0.85");   // above 1 is slower, below is quicker
+        props.setProperty("voice.piper.pause", "0.15");   // seconds of silence between sentences
         props.setProperty("voice.espeak.voice", "en-gb-x-rp");
         props.setProperty("voice.espeak.pitch", "45");
         props.setProperty("voice.espeak.gap", "3");
@@ -63,6 +64,14 @@ public final class Config {
         // waking reliable - see docs/VOICE.md.
         props.setProperty("voice.input.wakeModel",
                 System.getProperty("user.home") + "/.local/share/vosk/wake-model");
+        // Saying the name while Jungey is talking cuts it off, as it would a person.
+        props.setProperty("voice.input.bargeIn", "true");
+
+        // Speaking up unprompted: battery, heat, memory, disk and network - see Sentinel.
+        props.setProperty("sentinel.enabled", "true");
+        props.setProperty("sentinel.hotCelsius", "90");
+        // The first start of each day opens with a briefing; later ones only greet.
+        props.setProperty("briefing.onBoot", "true");
 
         // Blank means look at HF_TOKEN, then at the token huggingface-cli writes.
         props.setProperty("hf.token", "");
@@ -100,6 +109,10 @@ public final class Config {
         String[][] retired = {
                 // key, old default, new default
                 {"llm.keepAlive", "60m", "24h"},
+                // The voice used to read at an announcer's pace, with long gaps between sentences.
+                {"voice.piper.speed", "1.0", "0.85"},
+                {"voice.piper.pause", "0.35", "0.15"},
+                {"voice.rate", "165", "175"},
         };
         for (String[] r : retired) {
             if (r[1].equals(props.getProperty(r[0]))) {
