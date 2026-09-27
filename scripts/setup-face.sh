@@ -52,6 +52,8 @@ ffmpeg -loglevel error -y -i "$tmp/still.jpg" -vf "crop=$CROP" -q:v 2 "$FACE_DIR
 
 # Pixels of vision.jpg. Eyes are the openings lid to lid; the mouth is the line the lips
 # meet along; head is an ellipse around it, for where the face ends and the shoulders begin.
+# The outline goes round him - head, then shoulders to the foot of the picture - and
+# everything outside it is left out, so he is in the window rather than a photograph of him.
 cat > "$FACE_DIR/face.json" <<'EOF'
 {
   "image": "vision.jpg",
@@ -66,6 +68,14 @@ cat > "$FACE_DIR/face.json" <<'EOF'
   "jaw": 100,
   "head": {"x": 262, "y": 295, "rx": 165, "ry": 262},
   "gem": {"x": 300, "y": 153, "r": 13, "color": "#ffc94a"},
+  "outline": [[0, 668], [0, 427], [50, 417], [100, 405], [117, 398], [118, 388], [114, 365],
+              [111, 347], [104, 337], [97, 325], [96, 300], [96, 275], [99, 250], [105, 225],
+              [111, 200], [119, 175], [123, 150], [133, 125], [142, 108], [152, 93], [175, 69],
+              [200, 54], [225, 45], [250, 41], [275, 40], [300, 44], [325, 52], [350, 64],
+              [375, 83], [390, 100], [403, 125], [412, 150], [413, 175], [414, 200],
+              [414, 250], [411, 300], [404, 325], [399, 350], [391, 370], [382, 390],
+              [379, 400], [375, 410], [371, 420], [371, 437], [400, 444], [440, 454],
+              [480, 461], [516, 464], [516, 668]],
   "colors": {"mouth": "#1c0709", "teeth": "#857c76", "tongue": "#4a1519"}
 }
 EOF

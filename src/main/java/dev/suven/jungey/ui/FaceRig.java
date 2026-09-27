@@ -13,6 +13,10 @@ package dev.suven.jungey.ui;
  * <p>The work is done in the face's own frame, turned so the eyes are level, so a head held
  * at an angle still opens its mouth along its own chin rather than straight down the screen.
  *
+ * <p>Only the figure is drawn, not the photograph: everything outside its outline is left
+ * see-through, and the shoulders fade out towards the foot. The outline travels with the
+ * pixels, so the head sways and the jaw drops without leaving the background behind.
+ *
  * <p>No JavaFX in here: {@link FaceView} decides what the face is doing, this only draws it.
  */
 final class FaceRig {
@@ -27,6 +31,8 @@ final class FaceRig {
         double[] nose, chin, neck;
         /** x, y and the two radii of the head, for where the face stops and the shoulders begin. */
         double[] head;
+        /** The figure's outline, as x, y points going round it - or null for a soft oval. */
+        double[][] outline;
         /** Half the width of the jaw, as far out as it moves when the mouth opens. */
         double jaw;
         /** x, y and radius of a light on the face - Vision's gem - or null for none. */
@@ -47,6 +53,10 @@ final class FaceRig {
             s.chin = times(chin, k);
             s.neck = times(neck, k);
             s.head = times(head, k);
+            if (outline != null) {
+                s.outline = new double[outline.length][];
+                for (int i = 0; i < outline.length; i++) s.outline[i] = times(outline[i], k);
+            }
             s.jaw = jaw * k;
             s.gem = gem == null ? null : times(gem, k);
             s.gemColor = gemColor;
@@ -91,7 +101,6 @@ final class FaceRig {
     private final int w, h;
     private final int[] src;
     private final int[] still;
-    private final float[] vignette;
     private final float[] headWeight;
     private final int boxX0, boxY0, boxX1, boxY1;
 
@@ -117,6 +126,13 @@ final class FaceRig {
         this.w = width;
         this.h = height;
         this.src = pixels;
+
+        // How much of each pixel is the figure rides in the picture's own alpha, so that
+        // wherever a pixel is moved to, its share of the background goes with it.
+        float[] figure = silhouette(lm.outline == null ? null : smoothed(lm.outline), w, h);
+        for (int i = 0; i < w * h; i++) {
+            src[i] = Math.round(figure[i] * 255) << 24 | src[i] & 0xffffff;
+        }
 
         double[] a = lm.leftEye[0] <= lm.rightEye[0] ? lm.leftEye : lm.rightEye;
         double[] b = a == lm.leftEye ? lm.rightEye : lm.leftEye;
@@ -189,7 +205,6 @@ final class FaceRig {
         double hu = u(lm.head[0], lm.head[1]), hv = v(lm.head[0], lm.head[1]);
         double hrx = lm.head[2], hry = lm.head[3];
         headWeight = new float[w * h];
-        vignette = new float[w * h];
         still = new int[w * h];
         int x0 = w, y0 = h, x1 = 0, y1 = 0;
         for (int y = 0; y < h; y++) {
@@ -204,14 +219,7 @@ final class FaceRig {
                     y0 = Math.min(y0, y);
                     y1 = Math.max(y1, y);
                 }
-                // A soft darkening towards the edges, deepest at the foot of the picture,
-                // so the portrait sinks into the panel rather than ending at a hard line.
-                double side = Math.min(x, w - 1 - x) / (w * 0.16);
-                double top = y / (h * 0.08);
-                double foot = (h - 1 - y) / (h * 0.24);
-                double edge = Math.min(Math.min(side, top), foot);
-                vignette[i] = (float) (0.3 + 0.7 * smooth(0, 1, edge));
-                still[i] = finish(src[i], vignette[i], 0);
+                still[i] = finish(src[i], 0);
             }
         }
         // The jaw stretches the neck below the head's outline too, so that is in the box.
@@ -244,8 +252,8 @@ final class FaceRig {
             int from = inBox ? boxX0 : w, to = inBox ? boxX1 : w;
 
             if (tinted) {
-                for (int x = 0; x < from; x++) out[row + x] = finish(src[row + x], vignette[row + x], p.alarm);
-                for (int x = to; x < w; x++) out[row + x] = finish(src[row + x], vignette[row + x], p.alarm);
+                for (int x = 0; x < from; x++) out[row + x] = finish(src[row + x], p.alarm);
+                for (int x = to; x < w; x++) out[row + x] = finish(src[row + x], p.alarm);
             } else {
                 System.arraycopy(still, row, out, row, from);
                 if (to < w) System.arraycopy(still, row + to, out, row + to, w - to);
@@ -262,7 +270,7 @@ final class FaceRig {
                     px += hw * (bx - x);
                     py += hw * (by - y);
                 }
-                out[i] = finish(face(px, py, p), vignette[i], p.alarm);
+                out[i] = finish(face(px, py, p), p.alarm);
             }
         }
 
@@ -306,11 +314,12 @@ final class FaceRig {
                 double g0 = knotDst[base + g], g1 = knotDst[base + g + 1];
                 double cover = Math.min(v + 0.5, g1) - Math.max(v - 0.5, g0);
                 if (cover > 0) {
-                    int inside = mouth(u, v, g0, g1);
+                    // The mouth is always inside the figure, so always opaque.
+                    int inside = mouth(u, v, g0, g1) | 0xff000000;
                     if (cover >= 0.999) return inside;
                     // Half a pixel of lip: blend, so the edge of the mouth is not a staircase.
                     double lipV = v < (g0 + g1) / 2 ? Math.min(v, g0 - 0.01) : Math.max(v, g1 + 0.01);
-                    return mix(sampleAt(u, column(base, n, lipV)), inside, cover);
+                    return mix(sampleAt(u, column(base, n, lipV)), inside, cover) | 0xff000000;
                 }
             }
             v = column(base, n, v);
@@ -417,11 +426,12 @@ final class FaceRig {
                 double d2 = ((x - cx) * (x - cx) + (y - cy) * (y - cy)) / (gemR * gemR);
                 double a = p.glow * (0.85 * Math.exp(-d2 * 1.4) + 0.3 * Math.exp(-d2 * 0.22));
                 if (a < 0.004) continue;
-                int i = y * w + x, c = out[i];
-                out[i] = 0xff000000
-                        | screen(c >> 16 & 0xff, gr, a) << 16
-                        | screen(c >> 8 & 0xff, gg, a) << 8
-                        | screen(c & 0xff, gb, a);
+                int i = y * w + x, c = out[i], cover = c >>> 24;
+                if (cover == 0) continue;
+                out[i] = cover << 24
+                        | screen(c >> 16 & 0xff, gr, a, cover) << 16
+                        | screen(c >> 8 & 0xff, gg, a, cover) << 8
+                        | screen(c & 0xff, gb, a, cover);
             }
         }
     }
@@ -430,7 +440,7 @@ final class FaceRig {
         return sample(ox + u * cos - v * sin, oy + u * sin + v * cos);
     }
 
-    /** Bilinear, clamped to the picture, in 8-bit fixed point. */
+    /** Bilinear, clamped to the picture, in 8-bit fixed point; alpha too. */
     private int sample(double x, double y) {
         if (x < 0) x = 0;
         else if (x > w - 1.001) x = w - 1.001;
@@ -443,7 +453,12 @@ final class FaceRig {
         // Red and blue ride together in one int, sixteen bits apart, so neither spills into the other.
         int rb = lerpRb(lerpRb(p00, p10, fx), lerpRb(p01, p11, fx), fy);
         int g = lerpG(lerpG(p00, p10, fx), lerpG(p01, p11, fx), fy);
-        return rb | g;
+        int a = lerpA(lerpA(p00, p10, fx), lerpA(p01, p11, fx), fy);
+        return a | rb | g;
+    }
+
+    private static int lerpA(int a, int b, int t) {
+        return ((a >>> 24) * (256 - t) + (b >>> 24) * t) >>> 8 << 24;
     }
 
     private static int lerpRb(int a, int b, int t) {
@@ -454,14 +469,80 @@ final class FaceRig {
         return ((a & 0xff00) * (256 - t) + (b & 0xff00) * t) >>> 8 & 0xff00;
     }
 
-    private static int finish(int rgb, float vignette, double alarm) {
-        double r = (rgb >> 16 & 0xff) * vignette, g = (rgb >> 8 & 0xff) * vignette, b = (rgb & 0xff) * vignette;
+    /** The colour as drawn: tinted for an alarm, and premultiplied by how much of it is figure. */
+    private static int finish(int argb, double alarm) {
+        int a = argb >>> 24;
+        if (a == 0) return 0;
+        double r = argb >> 16 & 0xff, g = argb >> 8 & 0xff, b = argb & 0xff;
         if (alarm > 0) {
             r += (255 - r) * 0.22 * alarm;
             g *= 1 - 0.3 * alarm;
             b *= 1 - 0.3 * alarm;
         }
-        return 0xff000000 | (int) r << 16 | (int) g << 8 | (int) b;
+        double k = a / 255.0;
+        return a << 24 | (int) (r * k) << 16 | (int) (g * k) << 8 | (int) (b * k);
+    }
+
+    /**
+     * How much of each pixel is the figure, 0..1: inside the outline with a soft edge, and
+     * fading out towards the sides and the foot, so the shoulders end in the dark rather than
+     * at the edge of a photograph. Without an outline, a soft oval.
+     */
+    private static float[] silhouette(double[][] outline, int w, int h) {
+        float[] out = new float[w * h];
+        double feather = Math.max(1.2, h * 0.004);
+        for (int y = 0; y < h; y++) {
+            for (int x = 0; x < w; x++) {
+                double px = x + 0.5, py = y + 0.5;
+                double figure;
+                if (outline != null) {
+                    figure = smooth(-feather, feather, inside(outline, px, py));
+                } else {
+                    double dx = (px - w / 2.0) / (w / 2.0), dy = (py - h * 0.45) / (h * 0.55);
+                    figure = 1 - smooth(0.7, 1, Math.sqrt(dx * dx + dy * dy));
+                }
+                double side = Math.min(px, w - px) / (w * 0.14);
+                double foot = (h - py) / (h * 0.25);
+                out[y * w + x] = (float) (figure * smooth(0, 1, Math.min(side, foot)));
+            }
+        }
+        return out;
+    }
+
+    /** How far a point is inside the outline: its distance to the nearest edge, negative outside. */
+    private static double inside(double[][] poly, double x, double y) {
+        double nearest = Double.MAX_VALUE;
+        boolean in = false;
+        for (int i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+            double ax = poly[j][0], ay = poly[j][1], bx = poly[i][0], by = poly[i][1];
+            if ((by > y) != (ay > y) && x < ax + (y - ay) * (bx - ax) / (by - ay)) in = !in;
+            double ex = bx - ax, ey = by - ay;
+            double t = clamp(((x - ax) * ex + (y - ay) * ey) / (ex * ex + ey * ey + 1e-12), 0, 1);
+            double dx = x - ax - t * ex, dy = y - ay - t * ey;
+            nearest = Math.min(nearest, dx * dx + dy * dy);
+        }
+        return in ? Math.sqrt(nearest) : -Math.sqrt(nearest);
+    }
+
+    /** The outline as a curve through its points rather than straight lines between them. */
+    private static double[][] smoothed(double[][] points) {
+        int n = points.length, steps = 6;
+        double[][] out = new double[n * steps][];
+        for (int i = 0; i < n; i++) {
+            double[] p0 = points[(i - 1 + n) % n], p1 = points[i], p2 = points[(i + 1) % n], p3 = points[(i + 2) % n];
+            for (int s = 0; s < steps; s++) {
+                double t = (double) s / steps, t2 = t * t, t3 = t2 * t;
+                double[] q = new double[2];
+                for (int k = 0; k < 2; k++) {
+                    // Catmull-Rom: passes through every point, bends smoothly between them.
+                    q[k] = 0.5 * (2 * p1[k] + (p2[k] - p0[k]) * t
+                            + (2 * p0[k] - 5 * p1[k] + 4 * p2[k] - p3[k]) * t2
+                            + (3 * p1[k] - p0[k] - 3 * p2[k] + p3[k]) * t3);
+                }
+                out[i * steps + s] = q;
+            }
+        }
+        return out;
     }
 
     private double seam(double u) {
@@ -476,9 +557,10 @@ final class FaceRig {
         return -(x - ox) * sin + (y - oy) * cos;
     }
 
-    private static int screen(int base, int light, double amount) {
+    /** Light added over a premultiplied channel, up to how much of the pixel is there to light. */
+    private static int screen(int base, int light, double amount, int cover) {
         double l = light * amount;
-        return (int) (255 - (255 - base) * (255 - l) / 255);
+        return (int) (cover - (cover - base) * (255 - l) / 255);
     }
 
     private static int scale(int rgb, double k) {

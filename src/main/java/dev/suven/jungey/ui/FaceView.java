@@ -6,16 +6,11 @@ import dev.suven.jungey.core.Config;
 import dev.suven.jungey.voice.VoiceMeter;
 import javafx.animation.AnimationTimer;
 import javafx.scene.Node;
-import javafx.scene.effect.BlurType;
-import javafx.scene.effect.DropShadow;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.image.PixelFormat;
 import javafx.scene.image.WritableImage;
-import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
-import javafx.scene.paint.Color;
-import javafx.scene.shape.Rectangle;
 import javafx.stage.Screen;
 
 import java.io.IOException;
@@ -34,6 +29,9 @@ import java.util.Random;
  * then twice, glance about, look up and away while an answer is being worked out. The head
  * drifts and breathes, nods a little into what it is saying, and the brows lift on the words
  * said loudest. A light on the face, where there is one, glows brighter while thinking.
+ *
+ * <p>No frame and no photograph around it: only the figure is drawn, cut out along the
+ * outline face.json traces, so it sits in the window itself.
  *
  * <p>The picture and where its features are come from face.json - by default
  * ~/.local/share/jungey/face/face.json, which scripts/setup-face.sh writes. Without one
@@ -54,9 +52,6 @@ public final class FaceView extends StackPane implements Avatar {
     /** A blink: shut in 70 ms, held for 30, open again over 140. */
     private static final double BLINK_S = 0.24;
 
-    private static final Color CYAN = Color.web("#38e8ff");
-    private static final Color RED = Color.web("#ff4d5e");
-
     private final VoiceMeter meter;
     private final FaceRig rig;
     private final FaceRig.Pose pose = new FaceRig.Pose();
@@ -64,7 +59,6 @@ public final class FaceView extends StackPane implements Avatar {
     private final int[] pixels;
     private final int frameW, frameH;
     private final double unit;
-    private final DropShadow halo;
     private final AnimationTimer timer;
     private final Random random = new Random();
 
@@ -75,8 +69,6 @@ public final class FaceView extends StackPane implements Avatar {
     private double open, part, width, emphasis, lean;
     private double untilBlink = 1.5, blinkAt = -1;
     private double untilGlance, lookX, lookY;
-    private double haloGlow = -1;
-    private boolean haloRed;
 
     /** The face ui.face describes, or empty for the reactor: none installed, turned off, or unreadable. */
     public static Optional<FaceView> load(VoiceMeter meter) {
@@ -128,23 +120,8 @@ public final class FaceView extends StackPane implements Avatar {
         view.setFitWidth(viewW);
         view.setFitHeight(HEIGHT);
         view.setSmooth(true);
-        Rectangle clip = new Rectangle(viewW, HEIGHT);
-        clip.setArcWidth(24);
-        clip.setArcHeight(24);
-        view.setClip(clip);
 
-        // The glow sits on a plate behind the picture, so it is blurred once per change of
-        // colour rather than recomputed from the picture every frame.
-        Region plate = new Region();
-        plate.getStyleClass().add("face-plate");
-        halo = new DropShadow(BlurType.GAUSSIAN, CYAN.deriveColor(0, 1, 1, 0.35), 22, 0.25, 0, 0);
-        plate.setEffect(halo);
-
-        Region rim = new Region();
-        rim.getStyleClass().add("face-rim");
-        rim.setMouseTransparent(true);
-
-        getChildren().addAll(plate, view, rim);
+        getChildren().add(view);
         setMaxSize(viewW, HEIGHT);
         getStyleClass().add("face");
 
@@ -230,15 +207,6 @@ public final class FaceView extends StackPane implements Avatar {
         };
         pose.glow = ease(pose.glow, Math.max(shine, 0.3 + 0.55 * open), 0.08, dt);
         pose.alarm = ease(pose.alarm, state == State.ERROR ? 1 : 0, 0.12, dt);
-
-        // Blurring the glow again is the costly part of drawing it; only when it shows.
-        boolean red = state == State.ERROR;
-        if (red != haloRed || Math.abs(pose.glow - haloGlow) > 0.04) {
-            haloRed = red;
-            haloGlow = pose.glow;
-            halo.setColor((red ? RED : CYAN).deriveColor(0, 1, 1, 0.22 + 0.35 * haloGlow));
-            halo.setRadius(18 + 12 * haloGlow);
-        }
     }
 
     private void blink(double dt) {
@@ -298,6 +266,17 @@ public final class FaceView extends StackPane implements Avatar {
         JsonNode head = spec.path("head");
         lm.head = new double[]{number(head, "x"), number(head, "y"), number(head, "rx"), number(head, "ry")};
         lm.jaw = spec.path("jaw").asDouble(0);
+        JsonNode outline = spec.path("outline");
+        if (outline.isArray() && outline.size() >= 3) {
+            lm.outline = new double[outline.size()][];
+            for (int i = 0; i < outline.size(); i++) {
+                JsonNode q = outline.get(i);
+                if (!q.isArray() || q.size() < 2 || !q.get(0).isNumber() || !q.get(1).isNumber()) {
+                    throw new IOException("face.json: \"outline\" should be a list of [x, y]");
+                }
+                lm.outline[i] = new double[]{q.get(0).asDouble(), q.get(1).asDouble()};
+            }
+        }
         JsonNode gem = spec.path("gem");
         if (gem.isObject()) {
             lm.gem = new double[]{number(gem, "x"), number(gem, "y"), gem.path("r").asDouble(10)};
