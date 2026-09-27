@@ -49,9 +49,42 @@ Tuning, in `~/.config/jungey/jungey.properties`:
 | Key | Default | Notes |
 |---|---|---|
 | `voice.piper.model` | `~/.local/share/piper/en_GB-alan-medium.onnx` | the `.onnx`; its `.onnx.json` must sit beside it |
-| `voice.piper.speed` | `1.0` | above 1 is slower and more deliberate, below is quicker |
-| `voice.piper.pause` | `0.35` | seconds of silence between sentences |
+| `voice.piper.speed` | `0.85` | above 1 is slower and more deliberate, below is quicker |
+| `voice.piper.pause` | `0.15` | seconds of silence between sentences |
 | `voice.maxChars` | `400` | longer replies are cut short aloud and left in full on screen |
+
+Piper voices read at an announcer's pace at speed 1.0, and with a third of a second
+between sentences a streamed answer sounded like dictation. 0.85 and 0.15 are closer to
+how people talk. Anyone still on the old defaults is moved to the new ones; a value you
+set yourself is left alone.
+
+### Changing the subject
+
+Ask something new while Jungey is still answering - typed, or by saying the wake word over
+it - and three things happen:
+
+- The old answer stops, and not just its sound: the model stops writing it, so the rest of
+  it is never queued behind the new one. That used to be how two replies ended up taking
+  turns, sentence by sentence.
+- The voice trails off over about a tenth of a second instead of stopping dead
+  mid-syllable, and the next line waits for it, so two voices never overlap. One sound line
+  is kept open from sentence to sentence, which also removes the gap each new line used to
+  cost.
+- The new reply opens with a small word - "Right, okay.", "Oh, sure." - the way a person
+  lets go of one thought and turns to the next. Asked aloud, a slow answer opens with
+  "One moment." rather than silence. These short lines are synthesised in advance, so
+  they start the instant they are wanted.
+
+Interrupting by voice needs the small wake model (`scripts/setup-ears.sh`): the microphone
+hears Jungey's own voice too, and only a recogniser limited to the name is safe to leave
+listening through it. `voice.input.bargeIn=false` turns it off.
+
+### Conversations
+
+"Stay with me" keeps the microphone open after every reply, so nothing needs the wake word
+until "that's all" - or 45 seconds of silence. The status bar reads `MIC TALK` meanwhile.
+Without it, a reply to something said aloud still leaves the microphone open for eight
+seconds, for a quick follow-up.
 
 ### The hosted option
 

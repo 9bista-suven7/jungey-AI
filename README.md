@@ -6,6 +6,11 @@ A local-first desktop assistant for Linux, in the spirit of JARVIS. Java 21 + Ja
 Simple commands are answered instantly on-device; it reaches the network only when
 the question actually needs live data.
 
+It does not only answer. It speaks up when the battery runs low or the processor runs
+hot, opens the day with a briefing, remembers what you tell it, carries out several
+things asked in one breath, holds a conversation without its name being repeated, and
+can be cut off mid-sentence the way a person can. See [Like JARVIS](#like-jarvis).
+
 ---
 
 ## Jungey OS
@@ -29,6 +34,29 @@ After that `run.sh` starts the jar straight away, and only rebuilds it when the 
 changed, so a start takes well under a second. `mvn javafx:run` works too, but spends a few
 seconds checking the build every time.
 
+### Keeping the app you open up to date
+
+```bash
+cd ~/Documents/jungey-AI
+git pull
+./run.sh
+```
+
+That is all an update takes. `run.sh` rebuilds, keeps a copy of the new jar in
+`~/.local/share/jungey`, and starts it; if an older Jungey is still open, it hands over and
+closes, so you never end up with two voices. From then on everything that opens Jungey -
+the menu, the desktop icon, Super+J, the login autostart - opens the new build.
+
+Only one Jungey runs at a time. Opening it again while it runs brings the window to the
+front and starts listening, so Super+J doubles as push-to-talk.
+
+On a machine that did not come with Jungey (or a Jungey OS installed before this version),
+run this once to put it in the menu and start it at login:
+
+```bash
+scripts/install.sh                # --no-autostart to skip the login start, --uninstall to undo
+```
+
 To build the standalone jar yourself:
 
 ```bash
@@ -40,8 +68,10 @@ java -jar target/jungey-0.1.0.jar
 
 ```
 help
+good morning
 what time is it
 status report
+anything I should know
 weather
 weather in Kathmandu
 who is Nikola Tesla
@@ -68,6 +98,16 @@ note: pick up the dry cleaning
 add to my todo call the bank
 set a timer for 10 minutes
 remind me in 5 minutes to stretch
+remind me at 5pm to call home
+open firefox and set a timer for 25 minutes
+remember that my car is on level 3
+where is my car
+what do you remember
+engage focus protocol
+stay with me
+that's all
+thank you
+I'm back
 am I online
 switch to firefox
 find my invoice pdf
@@ -90,12 +130,17 @@ wants the utterance. First one to claim it wins.
 
 | Tier | Priority | Skills | Cost |
 |---|---|---|---|
-| Local | 5–99 | help, time, maths, voice, timers, notes, diagnostics, system, network, controls, updates, ocr, camera, screenshot, windows, launcher, find, translate, clipboard, training | instant, offline |
+| Local | 5–99 | help, briefing, chatter, memory, alerts, protocols, time, maths, voice, timers, notes, diagnostics, system, network, controls, updates, ocr, camera, screenshot, windows, launcher, find, translate, clipboard, training | instant, offline |
 | Online | 200–999 | weather, vision, lookup, news | one HTTP call, or a local vision model |
 | Model | 9000 | converse | local LLM, catch-all |
 
 That ordering is the whole point: "what time is it" never touches a model, so Jungey
 feels immediate. Only genuinely open-ended questions fall through to the LLM.
+
+Before routing, Jungey's name is taken off the front ("Jungey, open firefox"), and a
+request made of several that each have a skill is split and done in order: "open firefox
+and set a timer for 25 minutes" is two commands. It is only split when every piece is
+something a skill knows, so "remind me to call mum and dad" stays one reminder.
 
 ```
 src/main/java/dev/suven/jungey/
@@ -105,7 +150,12 @@ src/main/java/dev/suven/jungey/
 │   ├── Brain.java        routes utterances to skills
 │   ├── Skill.java        the interface every skill implements
 │   ├── Config.java       ~/.config/jungey/jungey.properties
-│   ├── Personality.java  greetings and voice lines
+│   ├── Personality.java  greetings, voice lines and conversational fillers
+│   ├── Sentinel.java     watches the machine and speaks up unprompted
+│   ├── Memory.java       what you asked it to remember, in ~/Documents/Jungey/memory.md
+│   ├── Context.java      what just happened, across every skill, for the model
+│   ├── Turn.java         which request is current, so a stale reply stops talking
+│   ├── SingleInstance.java one Jungey at a time, and the newest build wins
 │   └── SysInfo.java      reads /proc and /sys directly
 ├── skills/               one file per capability
 ├── ui/
@@ -123,6 +173,46 @@ src/main/java/dev/suven/jungey/
     ├── WhisperServer.java whisper.cpp kept running with its model loaded
     └── HuggingFace.java  the hosted end of both of those
 ```
+
+## Like JARVIS
+
+**It speaks up.** The sentinel checks the machine every thirty seconds, from /proc and
+/sys, and says so when something needs you: the battery at 20, 10 and 5 percent, the
+charger going in when it was low, the processor pinned for a minute (naming the program
+responsible), memory or the main drive nearly full, the processor running hot, the network
+dropping and coming back. Each is said once and then left alone for a good while. "Alerts
+off" silences it; "anything I should know?" asks it directly.
+
+**It briefs you.** The first start of each day follows the greeting with the time, the
+weather, anything the sentinel is worried about, your todo list and pending reminders.
+"Good morning" or "briefing" gets one any time.
+
+**It remembers.** "Remember that my car is on level 3" is kept for good in
+`~/Documents/Jungey/memory.md`; "where is my car?" is answered from it, and everything in it
+reaches the model with each question. "What do you remember" lists it, "forget about the
+car" drops it. The model is also told the time, the machine's state, the window in front
+and what Jungey has just done for you, so "why did that take so long?" means something.
+
+**It follows a conversation.** Say "stay with me" and the microphone stays open between
+sentences with no wake word needed, until "that's all" or 45 seconds of silence. Say the
+wake word while Jungey is talking and it stops - the voice trails off rather than being
+cut mid-syllable, and the half-finished answer is dropped, not left to finish under the
+new one. A new question over an old answer opens with a small human transition ("Right,
+okay.", "Oh, sure.") instead of a hard cut.
+
+**It runs protocols.** Several commands under one name, from
+`~/.config/jungey/protocols.conf` (written with a few examples the first time):
+
+```
+focus      = set volume to 25; remind me in 25 minutes to take a break
+night      = dimmer; dimmer; set volume to 20; remind me in 30 minutes to go to sleep
+```
+
+"Engage focus protocol", "night protocol", "list protocols", "edit protocols". Each step is
+anything you could say to Jungey.
+
+**It is always there.** It starts when you log in, and only one runs at a time: opening it
+again (Super+J on Jungey OS) brings it forward and listens.
 
 ## Adding a skill
 
@@ -299,10 +389,11 @@ models but does not train them.
 | `user.honorific` | `sir` | used for flourish |
 | `voice.enabled` | `true` | what `voice on` / `voice off` writes |
 | `voice.engine` | `auto` | `auto` / `piper` / `hf` / `espeak` / `none`; `auto` never leaves the machine |
-| `voice.rate` | `165` | espeak words per minute |
+| `voice.rate` | `175` | espeak words per minute |
 | `voice.maxChars` | `400` | longer replies are cut short aloud, in full on screen |
 | `voice.piper.model` | `~/.local/share/piper/en_GB-alan-medium.onnx` | the voice to speak with |
-| `voice.piper.speed` | `1.0` | above 1 is slower, below is quicker |
+| `voice.piper.speed` | `0.85` | above 1 is slower, below is quicker; 0.85 is a natural talking pace |
+| `voice.piper.pause` | `0.15` | seconds of silence between sentences |
 | `voice.hf.ttsModel` | `facebook/mms-tts-eng` | used when `voice.engine=hf` |
 | `voice.input.enabled` | `true` | set `false` to stop listening entirely |
 | `voice.input.engine` | `auto` | `auto` / `vosk` / `whispercpp` / `hf`; `auto` never leaves the machine |
@@ -311,6 +402,7 @@ models but does not train them.
 | `voice.input.wakeWord` | `purple` | what rouses it; must be in the model's vocabulary |
 | `voice.input.wakeVariants` | *(blank)* | comma-separated near-misses to also accept |
 | `voice.input.wakeFuzzy` | `true` | also accept the wake word one letter wrong |
+| `voice.input.bargeIn` | `true` | the wake word said while Jungey talks cuts it off; needs the small wake model |
 | `voice.input.model` | `~/.local/share/vosk/model` | unpacked Vosk model, used for commands |
 | `voice.input.wakeModel` | `~/.local/share/vosk/wake-model` | small model used only for waking |
 | `hf.token` | *(blank)* | falls back to `HF_TOKEN`, then the `hf auth login` token |
@@ -322,6 +414,9 @@ models but does not train them.
 | `llm.keepAlive` | `24h` | how long Ollama keeps the chat model loaded; reloading from disk is the slow part |
 | `llm.visionKeepAlive` | `60m` | the same for the vision model, which is asked for less often |
 | `ui.alwaysOnTop` | `false` | pin above other windows |
+| `sentinel.enabled` | `true` | speak up about battery, heat, memory, disk and network; what `alerts on` / `alerts off` writes |
+| `sentinel.hotCelsius` | `90` | processor temperature worth a warning |
+| `briefing.onBoot` | `true` | brief on the first start of each day |
 
 ## Roadmap
 
@@ -329,5 +424,7 @@ models but does not train them.
 - [x] **v0.2** — speech input (Vosk, offline) and a wake word
 - [x] **v0.3** — memory: notes, reminders, timers (markdown on disk, timers in memory)
 - [x] **v0.4** — system control (volume, lock, windows, network)
-- [ ] **v0.5** — tray icon, global hotkey, autostart
-- [ ] **v1.0** — packaged `.deb`
+- [x] **v0.5** — like JARVIS: unprompted alerts, briefings, long-term memory, protocols,
+  chained commands, conversations and interruptions; one instance, autostart, Super+J summons
+- [ ] **v0.6** — tray icon
+- [ ] **v1.0** — packaged `.deb` outside Jungey OS

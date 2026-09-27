@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Jungey
+Comment=Start the assistant when you log in, so it is there before you ask
+Exec=jungey --autostart
+Icon=jungey
+Terminal=false
+X-GNOME-Autostart-enabled=true
