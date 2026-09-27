@@ -138,6 +138,9 @@ public class LlmSkill implements Skill {
         body.put("model", model);
         body.put("stream", true);
         body.put("keep_alive", keepAlive());
+        // Models that reason before answering (Qwen 3.5, Gemma 4) would spend most of a
+        // minute on a CPU doing it, for replies of three sentences. Others ignore this.
+        body.put("think", false);
 
         var messages = body.putArray("messages");
         ObjectNode system = messages.addObject();
