@@ -17,10 +17,22 @@ can be cut off mid-sentence the way a person can. See [Like JARVIS](#like-jarvis
 
 A whole computer built around Jungey: a lightweight Linux desktop (Ubuntu 24.04 LTS
 with Xfce) that boots from a USB stick and installs with a graphical installer, with
-Jungey, Claude Desktop and Claude Code included. Download the ISO from the
+Jungey, Jungey TV, Claude Desktop and Claude Code included. Download the ISO from the
 [latest build](https://github.com/9bista-suven7/jungey-AI/releases/tag/jungey-os-latest);
 [os/README.md](os/README.md) covers making the USB stick, installing, and building it
 yourself.
+
+## Jungey TV
+
+A control center for a Samsung smart TV, as an app of its own beside Jungey: power,
+sound, inputs, menus, the TV's apps and any YouTube video, all on one screen. Jungey uses
+its `jungey-tv` command to do the same by voice - "open Netflix on the TV", "play lofi on
+YouTube on the TV". [apps/tv/README.md](apps/tv/README.md) covers installing and pairing:
+
+```bash
+apps/tv/install.sh
+jungey-tv pair
+```
 
 ## Run it
 
@@ -113,6 +125,9 @@ switch to firefox
 find my invoice pdf
 volume up
 lock the screen
+turn on the TV
+open Netflix on the TV
+play lofi hip hop on YouTube on the TV
 purple, what time is it
 voice off
 good answer
@@ -436,6 +451,7 @@ models but does not train them.
 | `llm.keepAlive` | `24h` | how long Ollama keeps the chat model loaded; reloading from disk is the slow part |
 | `llm.visionKeepAlive` | `60m` | the same for the vision model, which is asked for less often |
 | `ui.alwaysOnTop` | `false` | pin above other windows |
+| `tv.command` | `jungey-tv` | how Jungey reaches Jungey TV: a name on the PATH, or a full path |
 | `ui.avatar` | `auto` | `auto` shows the face when one is installed; `face` / `reactor` |
 | `ui.face` | `~/.local/share/jungey/face/face.json` | the face to show; see scripts/setup-face.sh |
 | `sentinel.enabled` | `true` | speak up about battery, heat, memory, disk and network; what `alerts on` / `alerts off` writes |
