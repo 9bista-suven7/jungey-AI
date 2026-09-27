@@ -1,0 +1,37 @@
+#!/bin/sh
+# Jungey Notepad: the window with no arguments or with files, one command with a command.
+#   jungey-notepad                        open the window
+#   jungey-notepad ~/todo.md              open that file in it
+#   jungey-notepad add shopping "eggs"    do that, say how it went, exit
+JAVA=/usr/lib/jvm/java-21-openjdk-amd64/bin/java
+[ -x "$JAVA" ] || JAVA=java
+
+# Your own build (apps/notepad/install.sh) ahead of the one that came with the system.
+JAR=""
+for jar in "${XDG_DATA_HOME:-$HOME/.local/share}/jungey-notepad/jungey-notepad.jar" /usr/share/jungey-notepad/jungey-notepad.jar; do
+    if [ -f "$jar" ]; then JAR="$jar"; break; fi
+done
+if [ -z "$JAR" ]; then
+    echo "jungey-notepad: not installed - run apps/notepad/install.sh" >&2
+    exit 1
+fi
+
+# Jungey runs a command at a time, so starting fast matters: a command is over in a moment,
+# and the quick compiler alone starts it sooner. The window, open for hours, keeps the full one.
+QUICK=-XX:TieredStopAtLevel=1
+case "${1:-}" in
+    ""|--window) QUICK="" ;;
+    *) if [ -e "$1" ]; then QUICK=""; fi ;;
+esac
+
+# Class data sharing maps in what the last start loaded. Each version of the jar gets an
+# archive of its own.
+CACHE="${XDG_CACHE_HOME:-$HOME/.cache}/jungey-notepad"
+CDS="$CACHE/jungey-notepad-$(stat -c %Y-%s "$JAR").jsa"
+if mkdir -p "$CACHE" 2>/dev/null; then
+    find "$CACHE" -maxdepth 1 -name 'jungey-notepad*.jsa' ! -path "$CDS" -delete
+    # The JVM's own warnings go to stderr: stdout is the answer, and Jungey reads it.
+    exec "$JAVA" -Xlog:disable -Xlog:all=warning:stderr \
+        -XX:+AutoCreateSharedArchive -XX:SharedArchiveFile="$CDS" $QUICK -jar "$JAR" "$@"
+fi
+exec "$JAVA" $QUICK -jar "$JAR" "$@"

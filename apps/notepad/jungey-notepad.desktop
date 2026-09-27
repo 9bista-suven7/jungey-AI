@@ -1,0 +1,17 @@
+[Desktop Entry]
+Type=Application
+Name=Jungey Notepad
+GenericName=Notes
+Comment=Plain Markdown notes, saved as you type, with every version kept
+Exec=jungey-notepad %F
+Icon=jungey-notepad
+Terminal=false
+Categories=Utility;TextEditor;
+MimeType=text/markdown;text/x-markdown;text/plain;
+Keywords=notes;notepad;markdown;journal;todo;tasks;writing;
+StartupWMClass=dev.suven.jungeynotepad.ui.Notepad
+Actions=today;
+
+[Desktop Action today]
+Name=Today's page
+Exec=jungey-notepad open today
