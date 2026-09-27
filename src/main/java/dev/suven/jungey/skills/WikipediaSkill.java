@@ -4,6 +4,11 @@ import com.fasterxml.jackson.databind.JsonNode;
 import dev.suven.jungey.core.Skill;
 import dev.suven.jungey.core.SkillResult;
 import dev.suven.jungey.net.Http;
+import dev.suven.jungey.net.Wikipedia;
+
+import java.util.Locale;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * Factual lookups via Wikipedia's REST summary endpoint - no key, fast, and it
@@ -31,12 +36,34 @@ public class WikipediaSkill implements Skill {
         return 210;
     }
 
+    /**
+     * Only when the question names its subject and asks nothing more: "who is Nikola Tesla",
+     * "tell me about Nepal". A question about a detail - "what is the capital of France",
+     * "who was the first man on the moon" - is answered by the model from the article
+     * instead, since the article's opening lines rarely hold the one fact asked for.
+     */
     @Override
     public boolean matches(String input) {
-        return input.matches("^(who|what)\\s+(is|was|are|were)\\s+.+")
-                || input.startsWith("tell me about ")
-                || input.startsWith("look up ")
-                || input.startsWith("define ");
+        Matcher m = SUBJECT.matcher(input.replaceAll("[?.!]+$", "").trim());
+        return m.matches() && names(m.group(1));
+    }
+
+    private static final Pattern SUBJECT = Pattern.compile(
+            "^(?:(?:who|what)\\s+(?:is|was|are|were)|tell me about|look up|define)\\s+(.+)$");
+
+    /** Words that make a subject into a question about some part or aspect of it. */
+    private static final Pattern DETAIL = Pattern.compile(
+            "\\b(?:of|in|on|at|for|from|by|with|to|about|between|than|who|which|that|when|where|did|does|first"
+                    + "|last|best|biggest|largest|smallest|tallest|highest|longest|oldest|youngest|fastest"
+                    + "|richest|current|next|called|named|made|used)\\b|\\d");
+
+    /** A pronoun is not a subject: "tell me about him" follows up on what came before. */
+    private static final Pattern PRONOUN = Pattern.compile(
+            "^(?:he|she|it|they|him|her|them|this|that|you|me|us|i|we|your|my)$");
+
+    static boolean names(String subject) {
+        String s = subject.trim().toLowerCase(Locale.ROOT);
+        return !s.isEmpty() && s.split("\\s+").length <= 5 && !DETAIL.matcher(s).find() && !PRONOUN.matcher(s).matches();
     }
 
     @Override
@@ -69,6 +96,9 @@ public class WikipediaSkill implements Skill {
         if (extract.isBlank()) {
             return SkillResult.error("I found the article for " + title + " but it had no summary.");
         }
+
+        // "When was he born?" next is about this.
+        Wikipedia.noteRecent(title);
 
         // Speak the first two sentences; show the whole extract on screen.
         String spoken = firstSentences(extract, 2);

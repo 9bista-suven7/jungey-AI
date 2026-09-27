@@ -87,6 +87,8 @@ anything I should know
 weather
 weather in Kathmandu
 who is Nikola Tesla
+how tall is Mount Everest
+when did he die
 news
 open firefox
 open camera
@@ -179,7 +181,10 @@ src/main/java/dev/suven/jungey/
 │   ├── ReactorView.java  the animated arc reactor, when there is no face
 │   ├── ConsoleView.java  transcript with typewriter effect
 │   └── StatusBar.java    live CPU / memory / battery
-├── net/Http.java         shared HTTP client
+├── net/
+│   ├── Http.java         shared HTTP client
+│   ├── Wikipedia.java    finds the sentences of an article that answer a question
+│   └── SplitResolver.java  DNS one address family at a time, so lookups do not stall
 └── voice/
     ├── Speaker.java      text to speech: piper, hugging face, espeak
     ├── PiperDaemon.java  one piper kept running, so no sentence waits for a model load
@@ -382,6 +387,23 @@ scripts/setup-brain.sh --model llama3   # or the larger Llama 3 8B
 `llama3.2:1b` in the config. Without Ollama everything else still works — unmatched
 input just says the reasoning core is offline.
 
+Questions of fact - who, what, when, where, which, how many or how tall - are answered
+from Wikipedia rather than from the model's memory, which at 3B confidently gets heights
+and dates wrong. Jungey finds the article, picks the handful of sentences that answer the
+question, hands them to the model beside it, and shows the source under the reply:
+
+```
+how tall is Mount Everest      → 8,848.86 metres, measured in 2020
+who was the first man on the moon
+when did he die                → follows on from the article just used
+```
+
+Only a few sentences go over, because the model reads a prompt at about fifty tokens a
+second on a CPU; a lookup adds a second or three. Questions about you or Jungey, requests,
+opinions and "why" questions skip it, and if Wikipedia cannot be reached within six
+seconds the model answers on its own as before. "Who is Nikola Tesla" and other questions
+that only name their subject still read out the article's opening, without the model.
+
 **A face** — Vision, from Marvel's films, in place of the reactor.
 
 ```bash
@@ -450,6 +472,7 @@ models but does not train them.
 | `llm.url` | `http://localhost:11434` | Ollama endpoint |
 | `llm.keepAlive` | `24h` | how long Ollama keeps the chat model loaded; reloading from disk is the slow part |
 | `llm.visionKeepAlive` | `60m` | the same for the vision model, which is asked for less often |
+| `llm.wikipedia` | `true` | answer questions of fact from Wikipedia; `false` for the model's memory alone |
 | `ui.alwaysOnTop` | `false` | pin above other windows |
 | `tv.command` | `jungey-tv` | how Jungey reaches Jungey TV: a name on the PATH, or a full path |
 | `ui.avatar` | `auto` | `auto` shows the face when one is installed; `face` / `reactor` |

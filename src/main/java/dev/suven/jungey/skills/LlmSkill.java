@@ -11,6 +11,7 @@ import dev.suven.jungey.core.SkillResult;
 import dev.suven.jungey.core.SysInfo;
 import dev.suven.jungey.core.Turn;
 import dev.suven.jungey.core.Viewport;
+import dev.suven.jungey.net.Wikipedia;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
@@ -26,6 +27,11 @@ import java.util.Deque;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
+import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
@@ -54,6 +60,15 @@ public class LlmSkill implements Skill {
 
     /** Long answers are shown in full but spoken only in part. */
     private static final int SPOKEN_LIMIT = 240;
+
+    /**
+     * Words of Wikipedia handed over with a question. The model reads a prompt at about fifty
+     * tokens a second on a laptop CPU, so this is about three seconds before it can answer.
+     */
+    private static final int PASSAGE_WORDS = 110;
+
+    /** How long a lookup may take before the question is answered without it. */
+    private static final long LOOKUP_SECONDS = 6;
 
     /** A sentence ends at terminal punctuation followed by space, or at a line break. */
     private static final Pattern SENTENCE_END = Pattern.compile("[.!?]+[\"')\\]]*\\s+|\\n+");
@@ -134,6 +149,10 @@ public class LlmSkill implements Skill {
         String base = cfg.str("llm.url", "http://localhost:11434");
         String model = cfg.str("llm.model", "llama3.2:3b");
 
+        long turn = Turn.mine();
+        Wikipedia.Passage reference = lookUp(input);
+        if (Turn.superseded(turn)) return SkillResult.of("");
+
         ObjectNode body = MAPPER.createObjectNode();
         body.put("model", model);
         body.put("stream", true);
@@ -151,13 +170,22 @@ public class LlmSkill implements Skill {
         situation.put("role", "system");
         situation.put("content", situation());
 
-        for (String[] turn : history) {
+        for (String[] past : history) {
             ObjectNode u = messages.addObject();
             u.put("role", "user");
-            u.put("content", turn[0]);
+            u.put("content", past[0]);
             ObjectNode a = messages.addObject();
             a.put("role", "assistant");
-            a.put("content", turn[1]);
+            a.put("content", past[1]);
+        }
+
+        // Next to the question, where a small model attends to it most.
+        if (reference != null) {
+            ObjectNode ref = messages.addObject();
+            ref.put("role", "system");
+            ref.put("content", "From Wikipedia's article \"" + reference.article().title() + "\":\n"
+                    + reference.text()
+                    + "\nAnswer from this. If it does not answer the question, say Wikipedia does not say, rather than guess.");
         }
 
         ObjectNode user = messages.addObject();
@@ -171,7 +199,6 @@ public class LlmSkill implements Skill {
                 .POST(HttpRequest.BodyPublishers.ofString(MAPPER.writeValueAsString(body)))
                 .build();
 
-        long turn = Turn.mine();
         HttpResponse<Stream<String>> res;
         try {
             res = CLIENT.send(req, HttpResponse.BodyHandlers.ofLines());
@@ -241,7 +268,45 @@ public class LlmSkill implements Skill {
 
         String text = reply.toString().trim();
         remember(input, text);
-        return SkillResult.streamed(text);
+        if (reference == null) return SkillResult.streamed(text);
+
+        // What the next "when did he die?" is about.
+        Wikipedia.noteRecent(reference.article().title());
+        return SkillResult.streamed(text, "source: " + reference.article().url().replaceFirst("^https://", ""));
+    }
+
+    /**
+     * For a question of fact - or a follow-up to one - the few sentences of Wikipedia that
+     * answer it. Null for anything else, and when Wikipedia cannot be reached in time: the
+     * question is then answered as before, from what the model knows.
+     */
+    private static Wikipedia.Passage lookUp(String input) {
+        if (!Config.get().bool("llm.wikipedia")) return null;
+        boolean followUp = Wikipedia.followsUp(input);
+        boolean facts = Wikipedia.asksForFacts(input);
+        if (!followUp && !facts) return null;
+
+        CompletableFuture<Wikipedia.Passage> lookup = CompletableFuture.supplyAsync(() -> {
+            try {
+                Optional<Wikipedia.Article> article = Optional.empty();
+                if (followUp) {
+                    Optional<String> recent = Wikipedia.recent();
+                    if (recent.isPresent()) article = Wikipedia.article(recent.get());
+                }
+                if (article.isEmpty() && facts) article = Wikipedia.find(input);
+                return article.flatMap(a -> Wikipedia.passage(a, input, PASSAGE_WORDS)).orElse(null);
+            } catch (Exception e) {
+                return null;
+            }
+        });
+        try {
+            return lookup.get(LOOKUP_SECONDS, TimeUnit.SECONDS);
+        } catch (TimeoutException | ExecutionException e) {
+            return null;
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            return null;
+        }
     }
 
     /** Speak each complete sentence in the buffer and drop it from there. */

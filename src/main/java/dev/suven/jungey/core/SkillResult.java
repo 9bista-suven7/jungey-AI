@@ -21,6 +21,11 @@ public record SkillResult(String speech, String detail, boolean ok, boolean stre
         return new SkillResult(fullText, null, true, true);
     }
 
+    /** Streamed, with a note shown beneath it once it has finished - where it came from. */
+    public static SkillResult streamed(String fullText, String detail) {
+        return new SkillResult(fullText, detail, true, true);
+    }
+
     public static SkillResult of(String speech) {
         return new SkillResult(speech, null, true);
     }

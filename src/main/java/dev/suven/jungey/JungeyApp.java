@@ -484,8 +484,9 @@ public class JungeyApp extends Application implements dev.suven.jungey.core.View
             return;
         }
 
-        // Already shown and spoken while it arrived - nothing left but to settle.
+        // Already shown and spoken while it arrived - nothing left but its source, and to settle.
         if (result.streamed()) {
+            if (result.hasDetail()) console.addDetail(result.detail());
             avatar.setState(Avatar.State.IDLE);
             if (spokenTo) listener.followUp();
             return;
